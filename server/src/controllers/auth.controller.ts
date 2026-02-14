@@ -76,7 +76,7 @@ export const registerUser = async (req: Request, res: Response) => {
 
 
 export const loginUser = async (req: Request, res: Response) => {
-
+    // console.log(req.body)
     try {
 
         // 1. Validate input
