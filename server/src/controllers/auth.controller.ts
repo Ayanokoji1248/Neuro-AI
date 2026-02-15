@@ -141,3 +141,27 @@ export const loginUser = async (req: Request, res: Response) => {
     }
 
 };
+
+
+export const logoutUser = async (req: Request, res: Response) => {
+    try {
+        // 1. Clear the cookie by name (usually 'token' or 'session')
+        res.cookie("token", "", {
+            httpOnly: true,
+            secure: false, // Set to true if using HTTPS
+            sameSite: "lax",
+            expires: new Date(0), // Sets expiration to 1970 (immediate deletion)
+        });
+
+        // 2. Send a success response
+        return res.status(200).json({
+            success: true,
+            message: "Logged out successfully"
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error during logout"
+        });
+    }
+};

@@ -1,4 +1,5 @@
-import { Brain, Lock, Mail } from "lucide-react"
+import LoginForm from "@/app/components/LoginForm"
+import { Brain } from "lucide-react"
 import Link from "next/link"
 
 
@@ -23,52 +24,7 @@ const LoginPage = () => {
                     <span className="text-xl font-black text-gray-900 tracking-tight">NeuroScan<span className="text-blue-600">AI</span></span>
                 </div>
 
-                {/* Header */}
-                <div className="text-center lg:text-left">
-                    <h1 className="text-2xl font-black text-gray-900 mb-1 tracking-tight">
-                        Welcome back
-                    </h1>
-                    <p className="text-sm text-gray-500 mb-6 font-medium">
-                        Please enter your details to sign in.
-                    </p>
-                </div>
-
-                <form className="space-y-4">
-                    <div>
-                        <label className="block text-xs font-bold text-gray-900 mb-1.5">Email Address</label>
-                        <div className="relative group">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                            <input
-                                type="email"
-                                required
-                                className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50/50 lg:bg-white text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-gray-300"
-                                placeholder="name@company.com"
-                            />
-                        </div>
-                    </div>
-
-                    <div>
-                        <div className="flex justify-between mb-1.5">
-                            <label className="text-xs font-bold text-gray-900">Password</label>
-                        </div>
-                        <div className="relative group">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                            <input
-                                type="password"
-                                required
-                                className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50/50 lg:bg-white text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-gray-300"
-                                placeholder="••••••••"
-                            />
-                        </div>
-                    </div>
-
-                    <button
-                        type="submit"
-                        className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-[0.98] mt-2 flex items-center justify-center"
-                    >
-                        Sign In
-                    </button>
-                </form>
+                <LoginForm />
 
                 <p className="mt-6 text-center text-xs font-medium text-gray-500">
                     Don&apos;t have an account? <Link href="/signup" className="font-bold text-blue-600 hover:text-blue-700 ml-1">Sign up</Link>
