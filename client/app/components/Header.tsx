@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Search, Upload, Menu } from "lucide-react";
+import { ArrowLeft, Upload, Menu } from "lucide-react";
 import ModalForm from "./ModalForm";
 
 interface HeaderProps {
@@ -13,7 +13,7 @@ interface HeaderProps {
 
 export default function Header({ onMenuClick }: HeaderProps) {
     const pathname = usePathname();
-    const [searchQuery, setSearchQuery] = useState("");
+    // const [searchQuery, setSearchQuery] = useState("");
     const [open, setOpen] = useState(false);
 
     const isDashboard = pathname === "/dashboard";

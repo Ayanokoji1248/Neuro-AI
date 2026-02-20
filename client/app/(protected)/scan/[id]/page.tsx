@@ -1,10 +1,6 @@
-// app/scan/[id]/page.tsx
-import Link from "next/link";
 import {
     Activity,
-    AlertTriangle,
     Clock,
-    FileText,
     Shield,
     AlertCircle,
     AlignLeft,
@@ -13,6 +9,7 @@ import {
     Share2,
     ScanLine,
 } from "lucide-react";
+import Image from "next/image";
 
 interface ScanResult {
     summary: string;
@@ -121,7 +118,7 @@ export default async function ScanPage({ params }:
 
                 {/* Risk Assessment Card (Kept separate at top for quick visibility) */}
                 {scan.status === "completed" && scan.result && (
-                    <div className={`relative bg-gradient-to-br ${getRiskColor(scan.result.riskAssessment)} p-6 rounded-2xl shadow-lg shadow-slate-200/50 overflow-hidden group hover:shadow-xl transition-all duration-300`}>
+                    <div className={`relative bg-linear-to-br ${getRiskColor(scan.result.riskAssessment)} p-6 rounded-2xl shadow-lg shadow-slate-200/50 overflow-hidden group hover:shadow-xl transition-all duration-300`}>
                         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700" />
                         <div className="relative z-10">
                             <div className="flex items-center justify-between mb-4">
@@ -188,7 +185,7 @@ export default async function ScanPage({ params }:
                                 <p className="text-slate-900 font-bold text-lg mb-2">
                                     Analyzing Scan Data
                                 </p>
-                                <p className="text-slate-500 text-sm max-w-[200px] mx-auto leading-relaxed">
+                                <p className="text-slate-500 text-sm max-w-50 mx-auto leading-relaxed">
                                     Our AI is processing the imaging data. This usually takes less than a minute.
                                 </p>
                             </div>
@@ -196,13 +193,13 @@ export default async function ScanPage({ params }:
                     ) : (
                         <>
                             {/* --- NEW IMAGE BANNER START --- */}
-                            <div className="relative w-full h-[320px] bg-slate-900 group overflow-hidden">
+                            <div className="relative w-full h-80 bg-slate-900 group overflow-hidden">
 
                                 {/* Background Scan Image */}
-                                <img
+                                <Image
                                     src={scan.previewUrl}
                                     alt="Scan Reference"
-                                    className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-105 transition-all duration-700 object-center object-cover"
+                                    className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-105 transition-all duration-700 object-center"
                                 />
 
                                 {/* Grid Overlay Effect */}
@@ -248,7 +245,7 @@ export default async function ScanPage({ params }:
                                                 key={idx}
                                                 className="flex gap-4 p-4 bg-slate-50/50 rounded-xl border border-slate-100 hover:border-indigo-200 hover:bg-white hover:shadow-md transition-all duration-300 group cursor-default"
                                             >
-                                                <div className="flex-shrink-0 w-6 h-6 mt-0.5 rounded-full bg-slate-200 text-slate-600 font-bold flex items-center justify-center text-xs group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                                                <div className="shrink-0 w-6 h-6 mt-0.5 rounded-full bg-slate-200 text-slate-600 font-bold flex items-center justify-center text-xs group-hover:bg-indigo-600 group-hover:text-white transition-colors">
                                                     {idx + 1}
                                                 </div>
                                                 <p className="text-sm font-medium text-slate-600 leading-relaxed group-hover:text-slate-900">
@@ -262,7 +259,7 @@ export default async function ScanPage({ params }:
                                 {/* Disclaimer */}
                                 <div className="pt-6 border-t border-slate-100">
                                     <div className="flex gap-3 text-slate-500 bg-amber-50/50 p-4 rounded-lg border border-amber-100">
-                                        <AlertCircle className="w-5 h-5 flex-shrink-0 text-amber-500" />
+                                        <AlertCircle className="w-5 h-5 shrink-0 text-amber-500" />
                                         <div className="space-y-1">
                                             <p className="text-xs font-bold uppercase tracking-wider text-amber-700">
                                                 AI Disclaimer

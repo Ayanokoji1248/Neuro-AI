@@ -301,7 +301,7 @@ const ModalForm = ({ setOpen }: {
                     <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white py-3 rounded-xl font-black text-sm
+                        className="w-full bg-linear-to-r from-indigo-600 to-indigo-700 text-white py-3 rounded-xl font-black text-sm
                            hover:from-indigo-700 hover:to-indigo-800 
                            disabled:opacity-50 disabled:cursor-not-allowed
                            shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300

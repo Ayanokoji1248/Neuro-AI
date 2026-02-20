@@ -21,10 +21,10 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, scans }: SidebarP
 
     const isDashboard = pathname === "/dashboard";
 
-    const goToScan = (id: string) => {
-        router.push(`/scan/${id}`);
-        setSidebarOpen(false);
-    };
+    // const goToScan = (id: string) => {
+    //     router.push(`/scan/${id}`);
+    //     setSidebarOpen(false);
+    // };
 
     const getUser = async () => {
         try {
@@ -156,7 +156,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, scans }: SidebarP
 
         ${pathname === `/scan/${file._id}`
                                             ? `
-                bg-gradient-to-r from-indigo-50 to-indigo-100/60
+                bg-linear-to-r from-indigo-50 to-indigo-100/60
                 text-indigo-700
                 font-semibold
                 border-indigo-200
