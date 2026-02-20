@@ -93,8 +93,12 @@ function getScan(id: string): Scan {
     return mockScans[id] || mockScans["1"];
 }
 
-export default function ScanPage({ params }: { params: { id: string } }) {
-    const scan = getScan(params.id);
+export default async function ScanPage({ params }:
+    {
+        params: Promise<{ id: string }>
+    }) {
+    const { id } = await params;
+    const scan = getScan(id);
 
     const getRiskColor = (risk: string) => {
         switch (risk) {

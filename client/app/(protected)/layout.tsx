@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import ProtectedLayoutClient from "../components/ProtectedLayoutClient";
-import { cookies } from "next/headers";
+import { getScans } from "../lib/getScans";
 
 export default async function ProtectedLayout({
     children,
@@ -8,18 +8,18 @@ export default async function ProtectedLayout({
     children: ReactNode;
 }) {
 
-    const cookieStore = await cookies()
-    const token = cookieStore.get("token")
+    // const cookieStore = await cookies()
+    // const token = cookieStore.get("token")
 
-    const scanRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/reports/my`, {
-        method: "GET",
-        headers: {
-            Cookie: `token=${token?.value}`
-        },
-        cache: "no-store"
-    })
+    // const scanRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/reports/my`, {
+    //     method: "GET",
+    //     headers: {
+    //         Cookie: `token=${token?.value}`
+    //     },
+    //     cache: "no-store"
+    // })
 
-    const scans = (await scanRes.json()).reports;
+    const scans = await getScans()
 
     return <ProtectedLayoutClient scans={scans}>{children}</ProtectedLayoutClient>;
 

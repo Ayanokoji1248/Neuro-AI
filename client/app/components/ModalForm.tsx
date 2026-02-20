@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import React, { useState } from 'react'
 import { toast } from 'sonner';
 import { uploadScan } from '../actions/scan';
+import { uploadToCloudinary } from '../utils/cloudinary';
+import { uploadScanSchema } from '../validations/scan';
 
 const ModalForm = ({ setOpen }: {
     setOpen: (value: boolean) => void
@@ -11,6 +13,7 @@ const ModalForm = ({ setOpen }: {
 
     const router = useRouter()
     const [isLoading, setIsLoading] = useState(false);
+    const [errors, setErrors] = useState<Record<string, string>>({});
     const [formData, setFormData] = useState({
         patientName: "",
         patientAge: "",
@@ -30,31 +33,72 @@ const ModalForm = ({ setOpen }: {
         if (e.target.files && e.target.files[0]) {
             setFormData((prev) => ({
                 ...prev,
-                file: e.target.files![0],
+                imageUrl: e.target.files![0],
             }));
+            // Clear file error when user selects a file
+            setErrors((prev) => {
+                const newErrors = { ...prev };
+                delete newErrors.imageUrl;
+                return newErrors;
+            });
         }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsLoading(true);
+        setErrors({}); // Clear previous errors
 
         try {
-            // Create FormData
+            // Validate form data with Zod
+            const result = uploadScanSchema.safeParse({
+                patientName: formData.patientName,
+                patientAge: formData.patientAge,
+                patientGender: formData.patientGender,
+                imageUrl: formData.imageUrl,
+            });
+
+            if (!result.success) {
+                // Map validation errors
+                const newErrors: Record<string, string> = {};
+                if (result.error.issues) {
+                    result.error.issues.forEach((issue) => {
+                        const path = issue.path[0] as string;
+                        newErrors[path] = issue.message;
+                    });
+                }
+                setErrors(newErrors);
+                toast.error('Please fix the validation errors');
+                return;
+            }
+
+            setIsLoading(true);
+
+            // Upload file to Cloudinary first
+            let imageUrl = null;
+            if (formData.imageUrl) {
+                const toastId = toast.loading('Uploading image to cloud...');
+                imageUrl = await uploadToCloudinary(formData.imageUrl);
+                
+                if (!imageUrl) {
+                    toast.dismiss(toastId); // Dismiss loading toast
+                    toast.error('Failed to upload image to Cloudinary. Please check console for details.');
+                    setIsLoading(false);
+                    return;
+                }
+                toast.dismiss(toastId); // Dismiss loading toast on success
+            }
+
+            // Create FormData for backend
             const data = new FormData();
             data.append("patientName", formData.patientName);
             data.append("patientAge", formData.patientAge);
             data.append("patientGender", formData.patientGender);
-            // Temporary 
-            data.append("imageUrl", "tempfileURL");
-            // if (formData.imageUrl) {
-            //     data.append("imageUrls", "tempfileURL");
-            // }
+            data.append("imageUrl", imageUrl || "");
 
             // Call server action
-            const result = await uploadScan(data);
+            const response = await uploadScan(data);
 
-            if (result.success) {
+            if (response.success) {
                 toast.success('Scan uploaded successfully!');
                 setOpen(false);
                 router.refresh(); // Refresh to show new data
@@ -67,7 +111,7 @@ const ModalForm = ({ setOpen }: {
                     imageUrl: null,
                 });
             } else {
-                toast.error(result.error || 'Upload failed');
+                toast.error(response.error || 'Upload failed');
             }
         } catch (error) {
             console.error(error);
@@ -131,9 +175,16 @@ const ModalForm = ({ setOpen }: {
                                 value={formData.patientName}
                                 onChange={handleChange}
                                 placeholder="Enter patient name"
-                                className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm font-medium"
+                                className={`w-full pl-10 pr-4 py-2.5 border rounded-xl bg-slate-50/50 focus:bg-white focus:ring-2 outline-none transition-all text-sm font-medium ${
+                                    errors.patientName
+                                        ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                                        : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/20"
+                                }`}
                             />
                         </div>
+                        {errors.patientName && (
+                            <p className="text-red-500 text-xs mt-1">{errors.patientName}</p>
+                        )}
                     </div>
 
                     {/* Age & Gender Row */}
@@ -153,9 +204,16 @@ const ModalForm = ({ setOpen }: {
                                     value={formData.patientAge}
                                     onChange={handleChange}
                                     placeholder="0"
-                                    className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm font-medium"
+                                    className={`w-full pl-10 pr-4 py-2.5 border rounded-xl bg-slate-50/50 focus:bg-white focus:ring-2 outline-none transition-all text-sm font-medium ${
+                                        errors.patientAge
+                                            ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                                            : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/20"
+                                    }`}
                                 />
                             </div>
+                            {errors.patientAge && (
+                                <p className="text-red-500 text-xs mt-1">{errors.patientAge}</p>
+                            )}
                         </div>
 
                         {/* Gender */}
@@ -170,7 +228,11 @@ const ModalForm = ({ setOpen }: {
                                     required
                                     value={formData.patientGender}
                                     onChange={handleChange}
-                                    className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm font-medium appearance-none cursor-pointer"
+                                    className={`w-full pl-10 pr-4 py-2.5 border rounded-xl bg-slate-50/50 focus:bg-white focus:ring-2 outline-none transition-all text-sm font-medium appearance-none cursor-pointer ${
+                                        errors.patientGender
+                                            ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
+                                            : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/20"
+                                    }`}
                                 >
                                     <option value="">Select</option>
                                     <option value="Male">Male</option>
@@ -179,6 +241,9 @@ const ModalForm = ({ setOpen }: {
                                 </select>
                                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                             </div>
+                            {errors.patientGender && (
+                                <p className="text-red-500 text-xs mt-1">{errors.patientGender}</p>
+                            )}
                         </div>
 
                     </div>
@@ -191,21 +256,28 @@ const ModalForm = ({ setOpen }: {
 
                         <label
                             htmlFor="file-upload"
-                            className="relative block w-full border-2 border-dashed border-slate-200 rounded-xl px-4 py-8 
-                   hover:border-indigo-300 transition-colors cursor-pointer
-                   bg-slate-50/50 hover:bg-indigo-50/30 group"
+                            className={`relative block w-full border-2 border-dashed rounded-xl px-4 py-8 
+                   transition-colors cursor-pointer
+                   bg-slate-50/50 group ${
+                       errors.imageUrl
+                           ? "border-red-400 hover:border-red-300 hover:bg-red-50/20"
+                           : "border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30"
+                   }`}
                         >
                             <input
                                 name='imageUrl'
                                 id="file-upload"
                                 type="file"
                                 accept="image/*"
-                                required
                                 onChange={handleFileChange}
                                 className="hidden"
                             />
 
-                            <div className="flex flex-col items-center justify-center text-slate-400 group-hover:text-indigo-500 transition-colors">
+                            <div className={`flex flex-col items-center justify-center transition-colors ${
+                                errors.imageUrl
+                                    ? "text-red-500 group-hover:text-red-600"
+                                    : "text-slate-400 group-hover:text-indigo-500"
+                            }`}>
                                 <FileImage className="w-8 h-8 mb-2" />
                                 {formData.imageUrl ? (
                                     <div className="text-center">
@@ -220,6 +292,9 @@ const ModalForm = ({ setOpen }: {
                                 )}
                             </div>
                         </label>
+                        {errors.imageUrl && (
+                            <p className="text-red-500 text-xs mt-1">{errors.imageUrl}</p>
+                        )}
                     </div>
 
                     {/* Submit Button */}

@@ -44,7 +44,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 </div>
 
                 <div className="flex items-center space-x-3 lg:space-x-6">
-                    {isDashboard && (
+                    {/* {isDashboard && (
                         <div className="relative w-40 lg:w-64 hidden sm:block">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             <input
@@ -55,7 +55,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
                         </div>
-                    )}
+                    )} */}
 
                     <button
                         onClick={() => setOpen(true)}

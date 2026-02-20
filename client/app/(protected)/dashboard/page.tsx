@@ -1,26 +1,16 @@
+import { Scan } from "@/app/interface";
+import { getScans } from "@/app/lib/getScans";
 import {
     Calendar,
     Upload,
     ChevronRight,
 } from "lucide-react";
-import { cookies } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 
 export default async function DashboardPage() {
 
-    const cookieStore = await cookies()
-    const token = cookieStore.get("token")
-
-    const scanRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/reports/my`, {
-        method: "GET",
-        headers: {
-            Cookie: `token=${token?.value}`
-        },
-        cache: "no-store"
-    })
-
-    const scans = (await scanRes.json()).reports;
+    const scans = await getScans();
 
     return (
         <div className="max-w-7xl mx-auto space-y-10">
@@ -40,14 +30,14 @@ export default async function DashboardPage() {
             {/* Scan Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 
-                {scans.map((file: any) => (
+                {scans.map((file: Scan) => (
                     <Link key={file._id}
                         href={`/scan/${file._id}`}>
                         <div
                             key={file._id}
                             className="group bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl hover:border-indigo-100 transition-all cursor-pointer flex flex-col h-full"
                         >
-                            <div className="relative aspect-[4/3] bg-slate-900 overflow-hidden">
+                            <div className="relative aspect-4/3 bg-slate-900 overflow-hidden">
                                 {/* Placeholder image since imageUrl is "tempfileURL" */}
                                 <Image
                                     src={file.imageUrl !== "tempfileURL" ? file.imageUrl : "/placeholder-mri.jpg"}

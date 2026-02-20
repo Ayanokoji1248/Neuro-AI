@@ -21,7 +21,7 @@ const SignUpForm = () => {
         setError("")
 
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/signup`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/register`, {
                 method: "POST",
                 credentials: "include",
                 body: JSON.stringify({ fullName, email, password }),
