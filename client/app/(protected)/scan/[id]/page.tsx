@@ -197,6 +197,7 @@ export default async function ScanPage({ params }:
 
                                 {/* Background Scan Image */}
                                 <Image
+                                    fill
                                     src={scan.previewUrl}
                                     alt="Scan Reference"
                                     className="w-full h-full object-cover opacity-60 group-hover:opacity-80 group-hover:scale-105 transition-all duration-700 object-center"

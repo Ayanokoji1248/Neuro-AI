@@ -162,9 +162,6 @@ const LandingPage = () => {
               <Link href="/signup" className="flex items-center justify-center bg-indigo-600 text-white px-8 py-4 rounded-2xl text-base font-black hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 group">
                 START SCAN <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
               </Link>
-              <button className="flex items-center justify-center bg-white border-2 border-gray-100 text-gray-700 px-8 py-4 rounded-2xl text-base font-black hover:border-blue-200 hover:text-blue-600 transition-all active:scale-95">
-                VIEW DEMO
-              </button>
             </div>
           </div>
 

@@ -36,8 +36,8 @@ const SignUpForm = () => {
             }
 
             toast.success("SignUp Successful")
-            router.push("/dashboard")
-            router.refresh()
+            router.replace("/dashboard")
+            // router.refresh()
         } catch (error) {
             console.log(error)
             toast.error("SignUp Failed")

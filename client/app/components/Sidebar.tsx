@@ -62,8 +62,8 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, scans }: SidebarP
                 throw new Error("Logged Out failed")
             }
 
-            router.push('/login')
-            router.refresh()
+            router.replace('/login')
+            // router.refresh()
 
         } catch (error) {
             console.log(error)

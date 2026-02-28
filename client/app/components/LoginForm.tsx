@@ -36,8 +36,8 @@ const LoginForm = () => {
             }
 
             toast.success("Login Successful")
-            router.push('/dashboard')
-            router.refresh()
+            router.replace('/dashboard')
+            // router.refresh()
 
         } catch (error) {
             console.log(error)

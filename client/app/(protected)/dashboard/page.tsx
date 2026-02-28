@@ -40,9 +40,9 @@ export default async function DashboardPage() {
                             <div className="relative aspect-4/3 bg-slate-900 overflow-hidden">
                                 {/* Placeholder image since imageUrl is "tempfileURL" */}
                                 <Image
+                                    fill
                                     src={file.imageUrl !== "tempfileURL" ? file.imageUrl : "/placeholder-mri.jpg"}
                                     alt={`MRI scan of ${file.patientName}`}
-                                    fill
                                     className="object-cover group-hover:scale-110 transition-transform duration-500 opacity-90 group-hover:opacity-100"
                                 />
 
