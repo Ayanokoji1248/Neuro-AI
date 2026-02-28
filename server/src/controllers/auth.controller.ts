@@ -3,6 +3,9 @@ import bcrypt from "bcrypt";
 import { loginSchema, registerSchema } from "../validations/auth.validation.js";
 import User from "../models/user.model.js";
 import { generateToken } from "../utils/generateToken.js";
+import { generateOTP } from "../utils/generateOtp.js";
+import { redisClient } from "../config/redis.js";
+import { sendOtpEmail } from "../utils/mailer.js";
 
 export const registerUser = async (req: Request, res: Response) => {
 
@@ -43,23 +46,25 @@ export const registerUser = async (req: Request, res: Response) => {
             password: hashedPassword
         });
 
-        const token = generateToken(user._id.toString());
+        // At registration we don't persist the user yet; instead store
+        // their info temporarily and perform OTP verification later.
+        const loginSessionId = crypto.randomUUID();
+        const otp = generateOTP();
+        const hashedOtp = await bcrypt.hash(otp, 10);
 
-        res.cookie("token", token, {
-            httpOnly: true,
-            secure: false,
-            sameSite: "lax",
-            maxAge: 7 * 24 * 60 * 60 * 1000
-        })
+        // store OTP and link to session
+        await redisClient.set(`otp:login:${loginSessionId}`, hashedOtp, { EX: 300 });
+        // store user data for later creation
+        const temp = JSON.stringify({ fullName, email, password: hashedPassword });
+        await redisClient.set(`register:session:${loginSessionId}`, temp, { EX: 300 });
 
-        // 5. Send response
+        console.log("OTP (register):", otp);
+        await sendOtpEmail(email, otp);
+
+        // 5. Send OTP session response (user not yet created)
         res.status(201).json({
-            message: "User registered successfully",
-            user: {
-                id: user._id,
-                fullName: user.fullName,
-                email: user.email
-            }
+            message: "OTP sent",
+            loginSessionId
         });
 
     } catch (error) {
@@ -109,26 +114,47 @@ export const loginUser = async (req: Request, res: Response) => {
             });
         }
 
-        // 4. Generate JWT token
-        const token = generateToken(user._id.toString());
+        const loginSessionId = crypto.randomUUID();
 
-        // 5. Set cookie
-        res.cookie("token", token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-        });
+        const otp = generateOTP()
+        const hashedOtp = await bcrypt.hash(otp, 10)
 
-        // 6. Send response
-        res.status(200).json({
-            message: "Login successful",
-            user: {
-                id: user._id,
-                fullName: user.fullName,
-                email: user.email
-            }
-        });
+
+        await redisClient.set(`otp:login:${loginSessionId}`, hashedOtp, { EX: 300 });
+
+
+        await redisClient.set(`login:user:${loginSessionId}`, user._id.toString(), { EX: 300 })
+
+        console.log("OTP: ", otp);
+        await sendOtpEmail(user.email, otp)
+
+
+        // // 4. Generate JWT token
+        // const token = generateToken(user._id.toString());
+
+        // // 5. Set cookie
+        // res.cookie("token", token, {
+        //     httpOnly: true,
+        //     secure: process.env.NODE_ENV === "production",
+        //     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        //     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        // });
+
+        // // 6. Send response
+        // res.status(200).json({
+        //     message: "Login successful",
+        //     user: {
+        //         id: user._id,
+        //         fullName: user.fullName,
+        //         email: user.email
+        //     }
+        // });
+
+        return res.status(200).json({
+            message: "OTP sent",
+            loginSessionId
+        })
+
 
     } catch (error) {
 
@@ -164,4 +190,60 @@ export const logoutUser = async (req: Request, res: Response) => {
             message: "Internal server error during logout"
         });
     }
+};
+
+
+
+export const verifyOtp = async (req: Request, res: Response) => {
+    const { loginSessionId, otp } = req.body;
+
+    const otpKey = `otp:login:${loginSessionId}`;
+    const userKey = `login:user:${loginSessionId}`;
+    const regKey = `register:session:${loginSessionId}`;
+
+    const storedHashedOtp = await redisClient.get(otpKey);
+    const userId = await redisClient.get(userKey);
+    const regData = await redisClient.get(regKey);
+
+    // either a login session or a registration session must exist
+    if (!storedHashedOtp || (!userId && !regData)) {
+        return res.status(400).json({ message: "Session expired" });
+    }
+
+    const isMatch = await bcrypt.compare(otp, storedHashedOtp);
+    if (!isMatch) {
+        return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    // remove otp entry
+    await redisClient.del(otpKey);
+
+    let finalUserId: string;
+
+    if (regData) {
+        // complete registration
+        const { fullName, email, password } = JSON.parse(regData);
+        // double check user doesn't already exist
+        const existing = await User.findOne({ email });
+        if (existing) {
+            finalUserId = existing._id.toString();
+        } else {
+            const user = await User.create({ fullName, email, password });
+            finalUserId = user._id.toString();
+        }
+        await redisClient.del(regKey);
+    } else {
+        finalUserId = userId!;
+        await redisClient.del(userKey);
+    }
+
+    const token = generateToken(finalUserId);
+    res.cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    return res.json({ message: "Login successful" });
 };
