@@ -1,8 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import jwt, { type JwtPayload } from "jsonwebtoken";
 
-
-
 export const authMiddleware = (
     req: Request,
     res: Response,
@@ -37,3 +35,21 @@ export const authMiddleware = (
     }
 
 };
+
+export const requireRole = (roles: string[]) => (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    const role = (req.user as any)?.role as string | undefined;
+
+    if (!role || !roles.includes(role)) {
+        return res.status(403).json({
+            message: "Forbidden"
+        });
+    }
+
+    next();
+};
+
+export const adminMiddleware = requireRole(["admin"]);

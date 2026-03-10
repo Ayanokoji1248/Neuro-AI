@@ -18,6 +18,11 @@ const userSchema = new Schema({
         trim: true,
         select: false
     },
+    role: {
+        type: String,
+        enum: ["admin", "doctor", "radiologist", "patient"],
+        default: "patient"
+    },
     report: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: "report"

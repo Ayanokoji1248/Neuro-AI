@@ -237,7 +237,13 @@ export const verifyOtp = async (req: Request, res: Response) => {
         await redisClient.del(userKey);
     }
 
-    const token = generateToken(finalUserId);
+    const user = await User.findById(finalUserId);
+
+    if (!user) {
+        return res.status(500).json({ message: "User not found after verification" });
+    }
+
+    const token = generateToken(finalUserId, user.role);
     res.cookie("token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",

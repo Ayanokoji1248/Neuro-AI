@@ -5,7 +5,11 @@ import { Loader, Lock, Mail } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
-const LoginForm = () => {
+type LoginFormProps = {
+    redirectTo?: string
+}
+
+const LoginForm = ({ redirectTo = "/dashboard" }: LoginFormProps) => {
 
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
@@ -68,8 +72,22 @@ const LoginForm = () => {
                     throw new Error(data.message || "OTP verification failed")
                 }
 
+                // After login, determine where to redirect based on role
+                const meRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/user/me`, {
+                    method: "GET",
+                    credentials: "include",
+                })
+
+                const meData = await meRes.json()
+                const role = meData?.user?.role
+
                 toast.success("Login successful")
-                router.replace('/dashboard')
+
+                if (role === "admin") {
+                    router.replace("/admin")
+                } else {
+                    router.replace(redirectTo)
+                }
             }
         } catch (err) {
             console.log(err)

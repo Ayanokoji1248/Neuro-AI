@@ -1,7 +1,8 @@
 // components/ProtectedLayoutClient.tsx
 "use client";
 
-import { useState, ReactNode } from "react";
+import { useEffect, useState, ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 
@@ -12,7 +13,49 @@ export default function ProtectedLayoutClient({
     children: ReactNode,
     scans: []
 }) {
+    const router = useRouter();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [loadingGuard, setLoadingGuard] = useState(true);
+
+    useEffect(() => {
+        const checkRole = async () => {
+            try {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/user/me`, {
+                    method: "GET",
+                    credentials: "include",
+                    cache: "no-store",
+                });
+
+                if (!res.ok) {
+                    router.replace("/login");
+                    return;
+                }
+
+                const data = await res.json();
+                if (data?.user?.role === "admin") {
+                    router.replace("/admin");
+                    return;
+                }
+
+                setLoadingGuard(false);
+            } catch {
+                router.replace("/login");
+            }
+        };
+
+        checkRole();
+    }, [router]);
+
+    if (loadingGuard) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <div className="h-12 w-12 rounded-full border-4 border-blue-500 border-t-transparent animate-spin mx-auto mb-4" />
+                    <p className="text-sm font-semibold text-gray-600">Checking access...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-screen bg-[#F8FAFC] overflow-hidden text-[#1E293B]">
