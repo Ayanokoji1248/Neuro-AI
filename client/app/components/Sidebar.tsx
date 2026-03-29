@@ -7,6 +7,11 @@ import { toast } from "sonner";
 import { Scan } from "../interface";
 import { useEffect, useState } from "react";
 
+interface UserInfo {
+    fullName: string;
+    role: string;
+}
+
 interface SidebarProps {
     sidebarOpen: boolean;
     setSidebarOpen: (open: boolean) => void;
@@ -17,7 +22,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, scans }: SidebarP
     const router = useRouter();
     const pathname = usePathname();
     // const [scans, setScans] = useState([]);
-    const [user, setUser] = useState()
+    const [user, setUser] = useState<UserInfo | null>(null)
 
     const isDashboard = pathname === "/dashboard";
 
@@ -38,7 +43,10 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, scans }: SidebarP
             }
             const userRes = await res.json()
             // console.log(userRes.user.fullName)
-            setUser(userRes.user.fullName)
+            setUser({
+                fullName: userRes.user.fullName,
+                role: userRes.user.role,
+            })
             // router.refresh()
 
         } catch (error) {
@@ -72,8 +80,13 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, scans }: SidebarP
 
     }
 
-    const getInitial = (username: string) => {
-        return username.split(" ").map(u => u[0]).join("")
+    const getInitial = (username?: string) => {
+        if (!username) return "";
+        return username
+            .split(" ")
+            .map((u) => u[0])
+            .join("")
+            .toUpperCase();
     }
 
     return (
@@ -215,12 +228,17 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, scans }: SidebarP
                 <div className="p-6 mt-auto border-t border-slate-100">
                     <div className="flex items-center space-x-3 mb-6 p-2 rounded-xl bg-slate-50">
                         <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center text-indigo-600 font-black uppercase">
-                            {user && getInitial(user)}
+                            {user && getInitial(user.fullName)}
                         </div>
                         <div className="overflow-hidden">
                             <p className="text-sm font-black text-slate-900 truncate leading-none mb-1 capitalize">
-                                {user}
+                                {user?.fullName}
                             </p>
+                            {user?.role && (
+                                <p className="text-xs text-slate-500 truncate">
+                                    {user.role.replace(/\b\w/g, (c) => c.toUpperCase())}
+                                </p>
+                            )}
                         </div>
                     </div>
                     <button

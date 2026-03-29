@@ -200,18 +200,7 @@ const LoginForm = ({ redirectTo = "/dashboard" }: LoginFormProps) => {
                                             }
                                         }
                                     }}
-                                    className="
-          w-12 h-14
-          text-xl font-semibold text-center
-          bg-white
-          border border-gray-300
-          rounded-xl
-          shadow-sm
-          transition-all duration-200
-          focus:border-blue-500
-          focus:ring-2 focus:ring-blue-500/20
-          outline-none
-        "
+                                    className=" w-12 h-14 text-xl font-semibold text-center bg-white border border-gray-300 rounded-xl shadow-sm transition-all duration-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
                                 />
                             ))}
                         </div>

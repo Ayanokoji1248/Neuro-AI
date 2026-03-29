@@ -23,7 +23,7 @@ export const registerUser = async (req: Request, res: Response) => {
 
         }
 
-        const { fullName, email, password } = result.data;
+        const { fullName, email, password, role } = result.data;
 
         // 2. Check existing user
         const existingUser = await User.findOne({ email });
@@ -43,7 +43,8 @@ export const registerUser = async (req: Request, res: Response) => {
         const user = await User.create({
             fullName,
             email,
-            password: hashedPassword
+            password: hashedPassword,
+            role
         });
 
         // At registration we don't persist the user yet; instead store
@@ -55,7 +56,7 @@ export const registerUser = async (req: Request, res: Response) => {
         // store OTP and link to session
         await redisClient.set(`otp:login:${loginSessionId}`, hashedOtp, { EX: 300 });
         // store user data for later creation
-        const temp = JSON.stringify({ fullName, email, password: hashedPassword });
+        const temp = JSON.stringify({ fullName, email, password: hashedPassword, role });
         await redisClient.set(`register:session:${loginSessionId}`, temp, { EX: 300 });
 
         console.log("OTP (register):", otp);
@@ -222,13 +223,13 @@ export const verifyOtp = async (req: Request, res: Response) => {
 
     if (regData) {
         // complete registration
-        const { fullName, email, password } = JSON.parse(regData);
+        const { fullName, email, password, role } = JSON.parse(regData);
         // double check user doesn't already exist
         const existing = await User.findOne({ email });
         if (existing) {
             finalUserId = existing._id.toString();
         } else {
-            const user = await User.create({ fullName, email, password });
+            const user = await User.create({ fullName, email, password, role });
             finalUserId = user._id.toString();
         }
         await redisClient.del(regKey);

@@ -10,6 +10,7 @@ const SignUpForm = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [fullName, setFullName] = useState("");
+    const [role, setRole] = useState<"patient" | "doctor" | "radiologist">("patient");
     const [otp, setOtp] = useState("");
     const [loginSessionId, setLoginSessionId] = useState<string | null>(null);
 
@@ -31,8 +32,8 @@ const SignUpForm = () => {
                 const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/register`, {
                     method: "POST",
                     credentials: "include",
-                    body: JSON.stringify({ fullName, email, password }),
-                    headers: { "Content-Type": "application/json" }
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ fullName, email, password, role }),
                 });
 
                 const data = await res.json();
@@ -65,6 +66,7 @@ const SignUpForm = () => {
                 setFullName("");
                 setEmail("");
                 setPassword("");
+                setRole("patient");
             } else {
                 setOtp("");
             }
@@ -109,6 +111,19 @@ const SignUpForm = () => {
                                     placeholder="John Doe"
                                 />
                             </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-gray-900 mb-1.5">I am a</label>
+                            <select
+                                value={role}
+                                onChange={(e) => setRole(e.target.value as "patient" | "doctor" | "radiologist")}
+                                className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                            >
+                                <option value="patient">Patient</option>
+                                <option value="doctor">Doctor</option>
+                                <option value="radiologist">Radiologist</option>
+                            </select>
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-900 mb-1.5">Email Address</label>

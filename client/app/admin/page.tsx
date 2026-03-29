@@ -1,6 +1,8 @@
-"use client"
+"use client";
 
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type User = {
     _id: string;
@@ -11,40 +13,306 @@ type User = {
     updatedAt: string;
 };
 
-const roles = ["all", "admin", "doctor", "radiologist", "patient"] as const;
+type ChartDatum = {
+    key: string;
+    label: string;
+    value: number;
+    fullDate?: string;
+};
 
+type RecentReport = {
+    _id: string;
+    patientName: string;
+    patientGender: string;
+    result: string;
+    confidence: number | null;
+    createdAt: string;
+};
+
+type Contributor = {
+    _id: string;
+    fullName: string;
+    role: string;
+    reportCount: number;
+};
+
+type DashboardPayload = {
+    users: User[];
+    dashboard: {
+        overview: {
+            totalUsers: number;
+            totalReports: number;
+            tumorCases: number;
+            pendingReports: number;
+            avgConfidence: number;
+        };
+        userRoles: ChartDatum[];
+        reportResults: ChartDatum[];
+        genderDistribution: ChartDatum[];
+        ageDistribution: ChartDatum[];
+        weeklyReports: ChartDatum[];
+        monthlySignups: ChartDatum[];
+        recentSignups: User[];
+        recentReports: RecentReport[];
+        topContributors: Contributor[];
+    };
+};
+
+const roles = ["all", "admin", "doctor", "radiologist", "patient"] as const;
 type Role = (typeof roles)[number];
 
-import { useRouter } from "next/navigation";
+const palette = {
+    admin: "#4f46e5",
+    doctor: "#2563eb",
+    radiologist: "#7c3aed",
+    patient: "#0f172a",
+    Tumor: "#dc2626",
+    "No Tumor": "#16a34a",
+    Pending: "#f59e0b",
+    Male: "#2563eb",
+    Female: "#4f46e5",
+    Other: "#8b5cf6",
+    neutral: "#94a3b8",
+};
+
+const badgeClasses: Record<string, string> = {
+    admin: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    doctor: "bg-blue-50 text-blue-700 border-blue-200",
+    radiologist: "bg-violet-50 text-violet-700 border-violet-200",
+    patient: "bg-slate-100 text-slate-700 border-slate-200",
+    Tumor: "bg-red-100 text-red-700 border-red-200",
+    "No Tumor": "bg-emerald-100 text-emerald-700 border-emerald-200",
+    Pending: "bg-amber-100 text-amber-700 border-amber-200",
+};
+
+async function requestDashboardData() {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/user/admin/dashboard`, {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+    });
+
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.message || "Failed to load admin dashboard");
+    }
+
+    return res.json() as Promise<DashboardPayload>;
+}
+
+function formatRole(role: string) {
+    return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
+function buildDonutGradient(items: ChartDatum[]) {
+    const total = items.reduce((sum, item) => sum + item.value, 0);
+
+    if (total === 0) {
+        return `conic-gradient(${palette.neutral} 0 100%)`;
+    }
+
+    let cursor = 0;
+
+    const stops = items.map((item) => {
+        const start = cursor;
+        const slice = (item.value / total) * 100;
+        cursor += slice;
+        const color = palette[item.key as keyof typeof palette] ?? palette.neutral;
+        return `${color} ${start}% ${cursor}%`;
+    });
+
+    return `conic-gradient(${stops.join(", ")})`;
+}
+
+function StatCard({
+    label,
+    value,
+    note,
+    accent,
+}: {
+    label: string;
+    value: string;
+    note: string;
+    accent: string;
+}) {
+    return (
+        <div className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="absolute inset-x-0 top-0 h-1.5" style={{ background: accent }} />
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">{label}</p>
+            <p className="mt-4 text-3xl font-black tracking-tight text-slate-900">{value}</p>
+            <p className="mt-2 text-sm text-slate-500">{note}</p>
+        </div>
+    );
+}
+
+function SectionCard({
+    title,
+    subtitle,
+    className = "",
+    children,
+}: {
+    title: string;
+    subtitle: string;
+    className?: string;
+    children: ReactNode;
+}) {
+    return (
+        <section className={`rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm ${className}`}>
+            <div className="mb-6">
+                <h2 className="text-lg font-bold text-slate-900">{title}</h2>
+                <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
+            </div>
+            {children}
+        </section>
+    );
+}
+
+function EmptyState({ message }: { message: string }) {
+    return (
+        <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center text-sm text-slate-500">
+            {message}
+        </div>
+    );
+}
+
+function DonutChart({
+    items,
+    centerLabel,
+    centerValue,
+}: {
+    items: ChartDatum[];
+    centerLabel: string;
+    centerValue: string;
+}) {
+    const total = items.reduce((sum, item) => sum + item.value, 0);
+
+    return (
+        <div className="grid gap-6 lg:grid-cols-[220px_1fr] lg:items-center">
+            <div
+                className="mx-auto flex h-[220px] w-[220px] items-center justify-center rounded-full"
+                style={{ background: buildDonutGradient(items) }}
+            >
+                <div className="flex h-[134px] w-[134px] flex-col items-center justify-center rounded-full bg-white text-center shadow-inner">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">{centerLabel}</span>
+                    <span className="mt-2 text-3xl font-black text-slate-900">{centerValue}</span>
+                    <span className="mt-1 text-xs text-slate-500">{total} records</span>
+                </div>
+            </div>
+
+            <div className="space-y-4">
+                {items.map((item) => {
+                    const percent = total === 0 ? 0 : Math.round((item.value / total) * 100);
+                    const color = palette[item.key as keyof typeof palette] ?? palette.neutral;
+
+                    return (
+                        <div key={item.key} className="rounded-2xl bg-slate-50/80 p-4">
+                            <div className="mb-2 flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-3">
+                                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
+                                    <span className="text-sm font-semibold text-slate-700">{item.label}</span>
+                                </div>
+                                <span className="text-sm font-bold text-slate-900">{item.value}</span>
+                            </div>
+                            <div className="h-2.5 overflow-hidden rounded-full bg-white">
+                                <div className="h-full rounded-full" style={{ width: `${percent}%`, backgroundColor: color }} />
+                            </div>
+                            <p className="mt-2 text-xs text-slate-500">{percent}% share</p>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+function VerticalBars({
+    items,
+    accent,
+}: {
+    items: ChartDatum[];
+    accent: string;
+}) {
+    const max = Math.max(...items.map((item) => item.value), 1);
+
+    return (
+        <div
+            className="grid gap-3 sm:gap-4"
+            style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+        >
+            {items.map((item) => {
+                const height = `${Math.max((item.value / max) * 100, item.value > 0 ? 12 : 4)}%`;
+
+                return (
+                    <div key={item.key} className="flex flex-col items-center gap-3">
+                        <div className="flex h-44 w-full items-end rounded-[24px] bg-slate-50 px-2 py-3">
+                            <div className="w-full rounded-[18px] shadow-[0_10px_30px_-18px_rgba(15,23,42,0.55)]" style={{ height, background: accent }} />
+                        </div>
+                        <div className="text-center">
+                            <p className="text-sm font-bold text-slate-900">{item.value}</p>
+                            <p className="text-xs font-medium text-slate-500">{item.label}</p>
+                            {item.fullDate ? <p className="mt-1 text-[11px] text-slate-400">{item.fullDate}</p> : null}
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+function HorizontalDistribution({
+    items,
+    usePalette = true,
+}: {
+    items: ChartDatum[];
+    usePalette?: boolean;
+}) {
+    const total = items.reduce((sum, item) => sum + item.value, 0);
+    const max = Math.max(...items.map((item) => item.value), 1);
+
+    return (
+        <div className="space-y-4">
+            {items.map((item, index) => {
+                const percentOfTotal = total === 0 ? 0 : Math.round((item.value / total) * 100);
+                const width = Math.round((item.value / max) * 100);
+                const fill = usePalette
+                    ? palette[item.key as keyof typeof palette] ?? palette.neutral
+                    : `linear-gradient(90deg, #0f766e ${20 + index * 8}%, #38bdf8 100%)`;
+
+                return (
+                    <div key={item.key} className="rounded-2xl bg-slate-50/80 p-4">
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                            <span className="text-sm font-semibold text-slate-700">{item.label}</span>
+                            <div className="text-right">
+                                <span className="block text-sm font-bold text-slate-900">{item.value}</span>
+                                <span className="text-xs text-slate-500">{percentOfTotal}%</span>
+                            </div>
+                        </div>
+                        <div className="h-3 overflow-hidden rounded-full bg-white">
+                            <div className="h-full rounded-full" style={{ width: `${width}%`, background: fill }} />
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
 
 export default function AdminDashboardPage() {
     const router = useRouter();
     const [users, setUsers] = useState<User[]>([]);
+    const [dashboard, setDashboard] = useState<DashboardPayload["dashboard"] | null>(null);
     const [roleFilter, setRoleFilter] = useState<Role>("all");
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchUsers = async (role: Role) => {
+    const fetchDashboard = async () => {
         setIsLoading(true);
         setError(null);
+
         try {
-            const query = role === "all" ? "" : `?role=${role}`;
-            const res = await fetch(
-                `${process.env.NEXT_PUBLIC_BACKEND_URL}/user/admin/users${query}`,
-                {
-                    method: "GET",
-                    credentials: "include",
-                    cache: "no-store",
-                }
-            );
-
-            if (!res.ok) {
-                const body = await res.json().catch(() => ({}));
-                throw new Error(body?.message || "Failed to load users");
-            }
-
-            const data = await res.json();
+            const data = await requestDashboardData();
             setUsers(data.users ?? []);
+            setDashboard(data.dashboard);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Something went wrong");
         } finally {
@@ -53,13 +321,38 @@ export default function AdminDashboardPage() {
     };
 
     useEffect(() => {
-        fetchUsers(roleFilter);
-    }, [roleFilter]);
+        const loadDashboard = async () => {
+            setIsLoading(true);
+            setError(null);
+
+            try {
+                const data = await requestDashboardData();
+                setUsers(data.users ?? []);
+                setDashboard(data.dashboard);
+            } catch (err) {
+                setError(err instanceof Error ? err.message : "Something went wrong");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        void loadDashboard();
+    }, []);
 
     const filteredUsers = useMemo(() => {
         if (roleFilter === "all") return users;
-        return users.filter((u) => u.role === roleFilter);
-    }, [users, roleFilter]);
+        return users.filter((user) => user.role === roleFilter);
+    }, [roleFilter, users]);
+
+    const topRole = useMemo(() => {
+        if (!dashboard?.userRoles.length) return null;
+        return [...dashboard.userRoles].sort((a, b) => b.value - a.value)[0] ?? null;
+    }, [dashboard]);
+
+    const highestAgeGroup = useMemo(() => {
+        if (!dashboard?.ageDistribution.length) return null;
+        return [...dashboard.ageDistribution].sort((a, b) => b.value - a.value)[0] ?? null;
+    }, [dashboard]);
 
     const handleLogout = async () => {
         try {
@@ -73,174 +366,342 @@ export default function AdminDashboardPage() {
     };
 
     return (
-        <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8 min-h-screen font-sans">
-            {/* Page Header */}
-            <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
-                <div>
-                    <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-                        Team Members
-                    </h1>
-                    <p className="text-sm text-slate-500 mt-1.5 max-w-2xl">
-                        Manage your team members, view their account permissions, and track when they joined.
-                    </p>
-                </div>
-                <div className="flex items-center">
-                    <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 hover:text-red-600 transition-all focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2"
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
-                        </svg>
-                        Sign Out
-                    </button>
-                </div>
-            </header>
+        <div className="min-h-screen bg-slate-50">
+            <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                <header className="relative overflow-hidden rounded-[32px] border border-slate-200 bg-white px-6 py-7 shadow-sm sm:px-8">
+                    <div className="absolute -right-10 top-0 h-40 w-40 rounded-full bg-indigo-100/70 blur-3xl" />
+                    <div className="absolute bottom-0 left-12 h-24 w-24 rounded-full bg-blue-100/80 blur-2xl" />
+                    <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                        <div className="max-w-3xl">
+                            <p className="text-xs font-black uppercase tracking-[0.28em] text-indigo-600">NeuroScan AI Admin</p>
+                            <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+                                MRI analytics, users, and platform activity in one place
+                            </h1>
+                            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
+                                Track user growth, report outcomes, confidence trends, and patient demographics from one place.
+                            </p>
+                        </div>
 
-            {/* Main Table Card */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-                {/* Table Toolbar */}
-                <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                        <label htmlFor="role-filter" className="text-sm font-medium text-slate-700 whitespace-nowrap">
-                            Filter by role:
-                        </label>
-                        <div className="relative">
-                            <select
-                                id="role-filter"
-                                value={roleFilter}
-                                onChange={(e) => setRoleFilter(e.target.value as Role)}
-                                className="appearance-none rounded-lg border border-slate-300 bg-white pl-4 pr-10 py-2 text-sm text-slate-700 shadow-sm hover:border-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer min-w-[140px]"
+                        <div className="flex flex-col gap-3 sm:flex-row">
+                            <button
+                                type="button"
+                                onClick={fetchDashboard}
+                                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
                             >
-                                {roles.map((role) => (
-                                    <option key={role} value={role}>
-                                        {role === "all" ? "All Roles" : role.charAt(0).toUpperCase() + role.slice(1)}
-                                    </option>
-                                ))}
-                            </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
-                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
-                                </svg>
-                            </div>
+                                Refresh Dashboard
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleLogout}
+                                className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-3 text-sm font-black text-white transition hover:bg-indigo-700 shadow-lg shadow-indigo-100"
+                            >
+                                Sign Out
+                            </button>
                         </div>
                     </div>
+                </header>
 
-                    <button
-                        type="button"
-                        onClick={() => fetchUsers(roleFilter)}
-                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 transition-all"
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                        </svg>
-                        Refresh
-                    </button>
-                </div>
+                {isLoading ? (
+                    <div className="mt-8 rounded-[32px] border border-slate-200 bg-white px-6 py-20 text-center shadow-sm">
+                        <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+                        <p className="mt-5 text-sm font-medium text-slate-600">Loading dashboard analytics...</p>
+                    </div>
+                ) : error || !dashboard ? (
+                    <div className="mt-8 rounded-[32px] border border-red-100 bg-red-50/90 px-6 py-14 text-center shadow-sm">
+                        <p className="text-base font-semibold text-red-700">{error ?? "Dashboard data is unavailable."}</p>
+                        <button
+                            type="button"
+                            onClick={fetchDashboard}
+                            className="mt-4 rounded-2xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500"
+                        >
+                            Try Again
+                        </button>
+                    </div>
+                ) : (
+                    <>
+                        <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                            <StatCard
+                                label="Total users"
+                                value={String(dashboard.overview.totalUsers)}
+                                note={`${filteredUsers.length} visible in the current filter.`}
+                                accent="linear-gradient(90deg, #1e293b 0%, #4f46e5 100%)"
+                            />
+                            <StatCard
+                                label="Reports processed"
+                                value={String(dashboard.overview.totalReports)}
+                                note={`${dashboard.overview.pendingReports} reports still pending review.`}
+                                accent="linear-gradient(90deg, #2563eb 0%, #4f46e5 100%)"
+                            />
+                            <StatCard
+                                label="Tumor detections"
+                                value={String(dashboard.overview.tumorCases)}
+                                note="Cases currently marked as Tumor by the AI pipeline."
+                                accent="linear-gradient(90deg, #991b1b 0%, #ef4444 100%)"
+                            />
+                            <StatCard
+                                label="Average confidence"
+                                value={`${dashboard.overview.avgConfidence}%`}
+                                note="Calculated from reports with a confidence score."
+                                accent="linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%)"
+                            />
+                        </section>
 
-                {/* Table Container */}
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-200">
-                        <thead className="bg-slate-50">
-                            <tr>
-                                <th scope="col" className="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                    User
-                                </th>
-                                <th scope="col" className="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                    Email
-                                </th>
-                                <th scope="col" className="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                    Role
-                                </th>
-                                <th scope="col" className="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                    Joined Date
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-slate-200">
-                            {isLoading ? (
-                                <tr>
-                                    <td colSpan={4} className="px-6 py-14 text-center">
-                                        <svg className="animate-spin mx-auto h-8 w-8 text-blue-600 mb-4" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        <p className="text-sm font-medium text-slate-600">Loading team members...</p>
-                                    </td>
-                                </tr>
-                            ) : error ? (
-                                <tr>
-                                    <td colSpan={4} className="px-6 py-10 text-center text-sm text-red-600 bg-red-50/50">
-                                        <div className="flex flex-col items-center justify-center">
-                                            <svg className="w-8 h-8 text-red-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                            </svg>
-                                            {error}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : filteredUsers.length === 0 ? (
-                                <tr>
-                                    <td colSpan={4} className="px-6 py-14 text-center">
-                                        <div className="flex flex-col items-center justify-center">
-                                            <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                                                <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                                                </svg>
-                                            </div>
-                                            <h3 className="text-sm font-semibold text-slate-900">No users found</h3>
-                                            <p className="mt-1 text-sm text-slate-500">Try adjusting your role filter or refresh the list.</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredUsers.map((user) => (
-                                    <tr key={user._id} className="hover:bg-slate-50/80 transition-colors duration-200">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-blue-700 font-bold text-xs flex-shrink-0 shadow-inner">
-                                                    {user.fullName.charAt(0).toUpperCase()}
+                        <section className="mt-8 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+                            <SectionCard
+                                title="User role composition"
+                                subtitle={topRole ? `${topRole.label} is currently the largest group.` : "Distribution of registered user roles."}
+                            >
+                                <DonutChart
+                                    items={dashboard.userRoles}
+                                    centerLabel="Top role"
+                                    centerValue={topRole?.label ?? "N/A"}
+                                />
+                            </SectionCard>
+
+                            <SectionCard
+                                title="Report status breakdown"
+                                subtitle="Outcome mix across all stored MRI reports."
+                            >
+                                <HorizontalDistribution items={dashboard.reportResults} />
+                            </SectionCard>
+                        </section>
+
+                        <section className="mt-6 grid gap-6 xl:grid-cols-3">
+                            <SectionCard
+                                title="Weekly scan activity"
+                                subtitle="Reports created over the last seven days."
+                            >
+                                <VerticalBars
+                                    items={dashboard.weeklyReports}
+                                    accent="linear-gradient(180deg, #2563eb 0%, #4f46e5 100%)"
+                                />
+                            </SectionCard>
+
+                            <SectionCard
+                                title="Monthly user growth"
+                                subtitle="New users added in the last six months."
+                            >
+                                <VerticalBars
+                                    items={dashboard.monthlySignups}
+                                    accent="linear-gradient(180deg, #4f46e5 0%, #7c3aed 100%)"
+                                />
+                            </SectionCard>
+
+                            <SectionCard
+                                title="Patient gender mix"
+                                subtitle="Distribution of report subjects by gender."
+                            >
+                                <DonutChart
+                                    items={dashboard.genderDistribution}
+                                    centerLabel="Reports"
+                                    centerValue={String(dashboard.overview.totalReports)}
+                                />
+                            </SectionCard>
+                        </section>
+
+                        <section className="mt-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
+                            <SectionCard
+                                title="Age band distribution"
+                                subtitle={highestAgeGroup ? `${highestAgeGroup.label} is the most frequent patient age range.` : "Patient ages grouped into reporting bands."}
+                            >
+                                <HorizontalDistribution items={dashboard.ageDistribution} usePalette={false} />
+                            </SectionCard>
+
+                            <SectionCard
+                                title="Top report contributors"
+                                subtitle="Users who have created the most reports."
+                            >
+                                {dashboard.topContributors.length === 0 ? (
+                                    <EmptyState message="No report contributors yet." />
+                                ) : (
+                                    <div className="space-y-3">
+                                        {dashboard.topContributors.map((user, index) => (
+                                            <div key={user._id} className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-4">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-600 text-sm font-black text-white shadow-lg shadow-indigo-100">
+                                                        #{index + 1}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-slate-900">{user.fullName}</p>
+                                                        <p className="text-xs text-slate-500">{formatRole(user.role)}</p>
+                                                    </div>
                                                 </div>
-                                                <div className="text-sm font-semibold text-slate-900">{user.fullName}</div>
+                                                <div className="text-right">
+                                                    <p className="text-lg font-black text-slate-900">{user.reportCount}</p>
+                                                    <p className="text-xs uppercase tracking-[0.2em] text-slate-400">reports</p>
+                                                </div>
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                                            {user.email}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span
-                                                className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-semibold border ${user.role === "admin"
-                                                        ? "bg-purple-50 text-purple-700 border-purple-200/80"
-                                                        : user.role === "doctor"
-                                                            ? "bg-emerald-50 text-emerald-700 border-emerald-200/80"
-                                                            : user.role === "radiologist"
-                                                                ? "bg-blue-50 text-blue-700 border-blue-200/80"
-                                                                : "bg-slate-50 text-slate-700 border-slate-200"
-                                                    }`}
-                                            >
-                                                {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                                            {new Date(user.createdAt).toLocaleDateString("en-US", {
-                                                year: "numeric",
-                                                month: "short",
-                                                day: "numeric",
-                                            })}
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </SectionCard>
+                        </section>
 
-            <footer className="mt-6 flex items-center justify-between text-xs text-slate-500">
-                <p>Displays all registered users currently in the database.</p>
-                <p>Admin privileges required.</p>
-            </footer>
+                        <section className="mt-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
+                            <SectionCard
+                                title="Recent signups"
+                                subtitle="Newest accounts added to the platform."
+                            >
+                                {dashboard.recentSignups.length === 0 ? (
+                                    <EmptyState message="No recent signups yet." />
+                                ) : (
+                                    <div className="space-y-3">
+                                        {dashboard.recentSignups.map((user) => (
+                                            <div key={user._id} className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-600 text-sm font-black text-white shadow-lg shadow-indigo-100">
+                                                        {user.fullName.charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-slate-900">{user.fullName}</p>
+                                                        <p className="text-xs text-slate-500">{user.email}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${badgeClasses[user.role] ?? "bg-slate-100 text-slate-700 border-slate-200"}`}>
+                                                        {formatRole(user.role)}
+                                                    </span>
+                                                    <p className="mt-2 text-xs text-slate-500">
+                                                        {new Date(user.createdAt).toLocaleDateString("en-US", {
+                                                            month: "short",
+                                                            day: "numeric",
+                                                            year: "numeric",
+                                                        })}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </SectionCard>
+
+                            <SectionCard
+                                title="Recent MRI reports"
+                                subtitle="Latest report records generated in the system."
+                            >
+                                {dashboard.recentReports.length === 0 ? (
+                                    <EmptyState message="No reports available yet." />
+                                ) : (
+                                    <div className="space-y-3">
+                                        {dashboard.recentReports.map((report) => (
+                                            <div key={report._id} className="rounded-2xl bg-slate-50 px-4 py-4">
+                                                <div className="flex items-start justify-between gap-4">
+                                                    <div>
+                                                        <p className="text-sm font-bold text-slate-900">{report.patientName}</p>
+                                                        <p className="mt-1 text-xs text-slate-500">{report.patientGender}</p>
+                                                    </div>
+                                                    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${badgeClasses[report.result] ?? "bg-slate-100 text-slate-700 border-slate-200"}`}>
+                                                        {report.result}
+                                                    </span>
+                                                </div>
+                                                <div className="mt-4 flex items-end justify-between gap-4">
+                                                    <div>
+                                                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Confidence</p>
+                                                        <p className="text-lg font-black text-slate-900">
+                                                            {report.confidence === null ? "N/A" : `${report.confidence}%`}
+                                                        </p>
+                                                    </div>
+                                                    <p className="text-xs text-slate-500">
+                                                        {new Date(report.createdAt).toLocaleDateString("en-US", {
+                                                            month: "short",
+                                                            day: "numeric",
+                                                            year: "numeric",
+                                                        })}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </SectionCard>
+                        </section>
+
+                        <SectionCard
+                            title="User directory"
+                            subtitle="Filter the user table without losing the overall dashboard context."
+                            className="mt-6"
+                        >
+                            <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <span className="text-sm font-semibold text-slate-700">Filter by role</span>
+                                    <div className="flex flex-wrap gap-2">
+                                        {roles.map((role) => {
+                                            const isActive = roleFilter === role;
+                                            return (
+                                                <button
+                                                    key={role}
+                                                    type="button"
+                                                    onClick={() => setRoleFilter(role)}
+                                                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                                                        isActive ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100" : "bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600"
+                                                    }`}
+                                                >
+                                                    {role === "all" ? "All roles" : formatRole(role)}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                                    Showing <span className="font-bold text-slate-900">{filteredUsers.length}</span> of{" "}
+                                    <span className="font-bold text-slate-900">{users.length}</span> users
+                                </div>
+                            </div>
+
+                            <div className="overflow-hidden rounded-[28px] border border-slate-200">
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-slate-200">
+                                        <thead className="bg-slate-50/90">
+                                            <tr>
+                                                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">User</th>
+                                                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Email</th>
+                                                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Role</th>
+                                                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Joined</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-200 bg-white">
+                                            {filteredUsers.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={4} className="px-6 py-16 text-center text-sm text-slate-500">
+                                                        No users found for the selected role.
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                filteredUsers.map((user) => (
+                                                    <tr key={user._id} className="transition hover:bg-slate-50/90">
+                                                        <td className="px-6 py-4">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-100 text-sm font-black text-indigo-600">
+                                                                    {user.fullName.charAt(0).toUpperCase()}
+                                                                </div>
+                                                                <span className="text-sm font-semibold text-slate-900">{user.fullName}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-sm text-slate-600">{user.email}</td>
+                                                        <td className="px-6 py-4">
+                                                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${badgeClasses[user.role] ?? "bg-slate-100 text-slate-700 border-slate-200"}`}>
+                                                                {formatRole(user.role)}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-sm text-slate-500">
+                                                            {new Date(user.createdAt).toLocaleDateString("en-US", {
+                                                                month: "short",
+                                                                day: "numeric",
+                                                                year: "numeric",
+                                                            })}
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </SectionCard>
+                    </>
+                )}
+            </div>
         </div>
     );
 }

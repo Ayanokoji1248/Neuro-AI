@@ -73,6 +73,67 @@ const ModalForm = ({ setOpen }: {
 
             setIsLoading(true);
 
+            // Check file with VirusTotal for malware
+            const vtToastId = toast.loading('Scanning file for malware...');
+            try {
+                if (!formData.imageUrl) {
+                    toast.dismiss(vtToastId);
+                    toast.error('No file selected');
+                    setIsLoading(false);
+                    return;
+                }
+                const vtFormData = new FormData();
+                vtFormData.append('file', formData.imageUrl);
+                const vtResponse = await fetch('https://www.virustotal.com/api/v3/files', {
+                    method: 'POST',
+                    body: vtFormData,
+                    headers: {
+                        'x-apikey': process.env.NEXT_PUBLIC_VIRUS_TOTAL as string
+                    }
+                });
+                if (!vtResponse.ok) {
+                    throw new Error('Failed to upload file to VirusTotal');
+                }
+                const vtData = await vtResponse.json();
+                const analysisId = vtData.data.id;
+
+                // Poll for analysis results
+                let analysis;
+                let attempts = 0;
+                const maxAttempts = 12; // Max 1 minute (12 * 5s)
+                do {
+                    await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+                    const response = await fetch(`https://www.virustotal.com/api/v3/analyses/${analysisId}`, {
+                        headers: {
+                            'x-apikey': process.env.NEXT_PUBLIC_VIRUS_TOTAL as string
+                        }
+                    });
+                    analysis = await response.json();
+                    attempts++;
+                } while (analysis.data.attributes.status !== 'completed' && attempts < maxAttempts);
+
+                if (analysis.data.attributes.status !== 'completed') {
+                    throw new Error('Scan timeout');
+                }
+
+                const stats = analysis.data.attributes.stats;
+                if (stats.malicious > 0 || stats.suspicious > 0) {
+                    toast.dismiss(vtToastId);
+                    toast.error('File detected as malicious or suspicious. Upload aborted.');
+                    setIsLoading(false);
+                    return;
+                }
+
+                toast.dismiss(vtToastId);
+                toast.success('File scan passed.');
+            } catch (error) {
+                console.error('VirusTotal scan error:', error);
+                toast.dismiss(vtToastId);
+                toast.error('Failed to scan file. Please try again.');
+                setIsLoading(false);
+                return;
+            }
+
             // Upload file to Cloudinary first
             let imageUrl = null;
             if (formData.imageUrl) {

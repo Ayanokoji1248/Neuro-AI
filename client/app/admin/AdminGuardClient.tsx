@@ -38,7 +38,7 @@ export default function AdminGuardClient({ children }: Props) {
 
                 setIsLoading(false);
             } catch {
-                router.replace("/admin/login");
+                router.replace("/login");
             }
         };
 
