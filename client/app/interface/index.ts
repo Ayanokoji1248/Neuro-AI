@@ -8,3 +8,9 @@ export interface Scan {
     confidence: number
     createdAt: string
 }
+
+export interface UserProfile {
+    fullName: string,
+    email: string,
+    role: string
+}

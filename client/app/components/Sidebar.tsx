@@ -4,13 +4,9 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Brain, Grid, LogOut, X } from "lucide-react";
 import { toast } from "sonner";
-import { Scan } from "../interface";
+import { Scan, UserProfile } from "../interface";
 import { useEffect, useState } from "react";
-
-interface UserInfo {
-    fullName: string;
-    role: string;
-}
+import ProfileModal from "./ProfileModal";
 
 interface SidebarProps {
     sidebarOpen: boolean;
@@ -21,15 +17,10 @@ interface SidebarProps {
 export default function Sidebar({ sidebarOpen, setSidebarOpen, scans }: SidebarProps) {
     const router = useRouter();
     const pathname = usePathname();
-    // const [scans, setScans] = useState([]);
-    const [user, setUser] = useState<UserInfo | null>(null)
+    const [user, setUser] = useState<UserProfile | null>(null)
+    const [profileModalOpen, setProfileModalOpen] = useState(false)
 
     const isDashboard = pathname === "/dashboard";
-
-    // const goToScan = (id: string) => {
-    //     router.push(`/scan/${id}`);
-    //     setSidebarOpen(false);
-    // };
 
     const getUser = async () => {
         try {
@@ -42,12 +33,11 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, scans }: SidebarP
                 throw new Error("Failed to get Authorized User")
             }
             const userRes = await res.json()
-            // console.log(userRes.user.fullName)
             setUser({
                 fullName: userRes.user.fullName,
+                email: userRes.user.email,
                 role: userRes.user.role,
             })
-            // router.refresh()
 
         } catch (error) {
             console.log(error)
@@ -141,10 +131,10 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, scans }: SidebarP
                         href="/dashboard"
                         onClick={() => setSidebarOpen(false)}
                         className={`
-                            w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-bold transition-all
+                            w-full flex cursor-pointer items-center space-x-3 px-4 py-3 rounded-xl font-bold transition-all
                             ${isDashboard
                                 ? "bg-indigo-50 text-indigo-600 shadow-sm"
-                                : "text-slate-500 hover:bg-slate-50"
+                                : "text-slate-500 hover:bg-indigo-50/70"
                             }
                         `}
                     >
@@ -163,7 +153,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, scans }: SidebarP
                                     key={file._id}
                                     className={`
         group relative flex items-center gap-3
-        w-full px-4 py-3 rounded-xl
+        w-full cursor-pointer px-4 py-3 rounded-xl
         transition-all duration-200 ease-out
         border border-transparent
 
@@ -226,30 +216,49 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, scans }: SidebarP
 
                 {/* User info and logout button */}
                 <div className="p-6 mt-auto border-t border-slate-100">
-                    <div className="flex items-center space-x-3 mb-6 p-2 rounded-xl bg-slate-50">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (user) {
+                                setProfileModalOpen(true);
+                            }
+                        }}
+                        className="mb-6 flex w-full cursor-pointer items-center space-x-3 rounded-xl bg-slate-50 p-3 text-left transition-all hover:bg-indigo-50"
+                    >
                         <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center text-indigo-600 font-black uppercase">
                             {user && getInitial(user.fullName)}
                         </div>
-                        <div className="overflow-hidden">
+                        <div className="min-w-0 overflow-hidden">
                             <p className="text-sm font-black text-slate-900 truncate leading-none mb-1 capitalize">
                                 {user?.fullName}
                             </p>
+                            <p className="text-xs text-slate-500 truncate">
+                                {user?.email}
+                            </p>
                             {user?.role && (
-                                <p className="text-xs text-slate-500 truncate">
-                                    {user.role.replace(/\b\w/g, (c) => c.toUpperCase())}
+                                <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-indigo-600">
+                                    {user.role}
                                 </p>
                             )}
                         </div>
-                    </div>
+                    </button>
                     <button
                         onClick={logout}
-                        className="w-full flex items-center justify-center space-x-2 text-slate-400 py-2 font-bold hover:text-red-500 transition-colors"
+                        className="w-full flex cursor-pointer items-center justify-center space-x-2 rounded-xl py-2 font-bold text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
                     >
                         <LogOut className="w-4 h-4" />
                         <span className="text-sm">Sign out</span>
                     </button>
                 </div>
             </aside>
+
+            {user && profileModalOpen && (
+                <ProfileModal
+                    user={user}
+                    setOpen={setProfileModalOpen}
+                    onProfileUpdated={setUser}
+                />
+            )}
         </>
     );
 }
