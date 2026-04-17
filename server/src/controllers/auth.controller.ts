@@ -245,12 +245,17 @@ export const verifyOtp = async (req: Request, res: Response) => {
     }
 
     const token = generateToken(finalUserId, user.role);
+    console.log("Setting cookie for user:", finalUserId, "with role:", user.role);
+    
     res.cookie("token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: "/"
     });
+
+    console.log("Cookie set. NODE_ENV:", process.env.NODE_ENV);
 
     return res.json({ message: "Login successful" });
 };

@@ -26,19 +26,25 @@ export default function ProtectedLayoutClient({
                     cache: "no-store",
                 });
 
+                console.log("User check response:", res.status, res.ok);
+
                 if (!res.ok) {
+                    console.error("User check failed, redirecting to login");
                     router.replace("/login");
                     return;
                 }
 
                 const data = await res.json();
+                console.log("User data:", data);
+                
                 if (data?.user?.role === "admin") {
                     router.replace("/admin");
                     return;
                 }
 
                 setLoadingGuard(false);
-            } catch {
+            } catch (error) {
+                console.error("Error checking role:", error);
                 router.replace("/login");
             }
         };
