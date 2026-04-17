@@ -113,21 +113,41 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const formData = await request.formData();
-        const patientName = String(formData.get("patientName") ?? "");
-        const patientAge = String(formData.get("patientAge") ?? "");
-        const patientGender = String(formData.get("patientGender") ?? "");
-        const flairFile = ensureFile(formData.get("flairFile"), "FLAIR");
-        const t1File = ensureFile(formData.get("t1File"), "T1");
-        const t2File = ensureFile(formData.get("t2File"), "T2");
-        const t1ceFile = ensureFile(formData.get("t1ceFile"), "T1CE");
+        let patientName: string, patientAge: string, patientGender: string;
+        let prediction: BrainTumorPredictionResult;
 
-        const prediction = await predictBrainTumor({
-            flairFile,
-            t1File,
-            t2File,
-            t1ceFile,
-        });
+        const contentType = request.headers.get("content-type") || "";
+
+        if (contentType.includes("application/json")) {
+            const body = await request.json();
+            patientName = body.patientName;
+            patientAge = body.patientAge;
+            patientGender = body.patientGender;
+            prediction = body.prediction;
+        } else {
+            const formData = await request.formData();
+            patientName = String(formData.get("patientName") ?? "");
+            patientAge = String(formData.get("patientAge") ?? "");
+            patientGender = String(formData.get("patientGender") ?? "");
+
+            // Check if prediction is already provided as JSON in FormData
+            const existingPrediction = formData.get("prediction");
+            if (existingPrediction) {
+                prediction = JSON.parse(String(existingPrediction));
+            } else {
+                const flairFile = ensureFile(formData.get("flairFile"), "FLAIR");
+                const t1File = ensureFile(formData.get("t1File"), "T1");
+                const t2File = ensureFile(formData.get("t2File"), "T2");
+                const t1ceFile = ensureFile(formData.get("t1ceFile"), "T1CE");
+
+                prediction = await predictBrainTumor({
+                    flairFile,
+                    t1File,
+                    t2File,
+                    t1ceFile,
+                });
+            }
+        }
 
         console.log("Brain Tumor Prediction Result:", {
             imageUrl: prediction.imageUrl,

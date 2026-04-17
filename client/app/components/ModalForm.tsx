@@ -102,46 +102,73 @@ const ModalForm = ({ setOpen }: {
             }
 
             setIsLoading(true);
-            const data = new FormData();
-            data.append("patientName", result.data.patientName);
-            data.append("patientAge", result.data.patientAge);
-            data.append("patientGender", result.data.patientGender);
-            data.append("flairFile", result.data.flairFile);
-            data.append("t1File", result.data.t1File);
-            data.append("t2File", result.data.t2File);
-            data.append("t1ceFile", result.data.t1ceFile);
-
-            const analysisToastId = toast.loading("Scanning files and analyzing MRI...");
-            let response: { success: boolean; error?: string };
-
+            const analysisToastId = toast.loading("Analyzing MRI on client (bypassing Vercel limits)...");
+            
             try {
-                const uploadResponse = await fetch("/api/scan", {
+                // 1. Perform analysis directly from the browser to Hugging Face
+                const BRAIN_TUMOR_API_BASE_URL = "https://aryan1359-brain-tumor-api.hf.space";
+                
+                const predictFormData = new FormData();
+                predictFormData.append("flair", formData.flairFile!, formData.flairFile!.name);
+                predictFormData.append("t1", formData.t1File!, formData.t1File!.name);
+                predictFormData.append("t2", formData.t2File!, formData.t2File!.name);
+                predictFormData.append("t1ce", formData.t1ceFile!, formData.t1ceFile!.name);
+
+                const predictRes = await fetch(`${BRAIN_TUMOR_API_BASE_URL}/predict`, {
                     method: "POST",
-                    body: data,
-                    credentials: "include",
+                    body: predictFormData,
                 });
 
-                const responseData = await uploadResponse.json() as {
-                    message?: string;
-                    error?: string;
+                if (!predictRes.ok) {
+                    const errData = await predictRes.json().catch(() => ({}));
+                    throw new Error(errData.message || "Brain tumor analysis failed at Hugging Face");
+                }
+
+                const predictData = await predictRes.json();
+                
+                // Helper to construct absolute URLs from relative paths returned by HF
+                const toAbsoluteUrl = (path?: string) => path ? new URL(path, BRAIN_TUMOR_API_BASE_URL).toString() : undefined;
+
+                const prediction = {
+                    imageUrl: toAbsoluteUrl(predictData.files?.overlay),
+                    overlayUrl: toAbsoluteUrl(predictData.files?.overlay),
+                    maskUrl: toAbsoluteUrl(predictData.files?.mask),
+                    coloredMaskUrl: toAbsoluteUrl(predictData.files?.colored_mask),
+                    flairPreviewUrl: toAbsoluteUrl(predictData.files?.flair),
                 };
 
-                response = {
-                    success: uploadResponse.ok,
-                    error: responseData.error ?? responseData.message,
-                };
+                if (!prediction.imageUrl) {
+                    throw new Error("Analysis completed but no results were returned");
+                }
+
+                // 2. Send the results to our API as JSON (tiny payload, avoids 413 error)
+                const saveRes = await fetch("/api/scan", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        patientName: formData.patientName,
+                        patientAge: formData.patientAge,
+                        patientGender: formData.patientGender,
+                        prediction
+                    }),
+                });
+
+                const saveData = await saveRes.json();
+
+                if (!saveRes.ok) {
+                    throw new Error(saveData.error || saveData.message || "Failed to save scan results");
+                }
+
+                toast.success("Scan analyzed and saved successfully");
+                setOpen(false);
+                resetForm();
+                router.refresh();
+            } catch (error) {
+                console.error("Client-side analysis error:", error);
+                toast.error(error instanceof Error ? error.message : "Analysis failed");
             } finally {
                 toast.dismiss(analysisToastId);
             }
-
-            if (!response.success) {
-                throw new Error(response.error || "Failed to save scan");
-            }
-
-            toast.success("Scan verified and saved successfully");
-            setOpen(false);
-            resetForm();
-            router.refresh();
         } catch (error) {
             console.error(error);
             toast.error(error instanceof Error ? error.message : "Something went wrong");
