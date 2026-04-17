@@ -20,6 +20,7 @@ export default function ProtectedLayoutClient({
     useEffect(() => {
         const checkRole = async () => {
             try {
+                console.log("ProtectedLayoutClient - Checking user role...");
                 const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/user/me`, {
                     method: "GET",
                     credentials: "include",
@@ -29,7 +30,7 @@ export default function ProtectedLayoutClient({
                 console.log("User check response:", res.status, res.ok);
 
                 if (!res.ok) {
-                    console.error("User check failed, redirecting to login");
+                    console.error("User check failed with status", res.status, "redirecting to login");
                     router.replace("/login");
                     return;
                 }
@@ -38,10 +39,12 @@ export default function ProtectedLayoutClient({
                 console.log("User data:", data);
                 
                 if (data?.user?.role === "admin") {
+                    console.log("Admin detected, redirecting to /admin");
                     router.replace("/admin");
                     return;
                 }
 
+                console.log("User authenticated successfully, setting loadingGuard to false");
                 setLoadingGuard(false);
             } catch (error) {
                 console.error("Error checking role:", error);

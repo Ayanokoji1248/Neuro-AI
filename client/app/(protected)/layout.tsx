@@ -8,18 +8,11 @@ export default async function ProtectedLayout({
     children: ReactNode;
 }) {
 
-    // const cookieStore = await cookies()
-    // const token = cookieStore.get("token")
+    console.log("ProtectedLayout - Starting");
 
-    // const scanRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/reports/my`, {
-    //     method: "GET",
-    //     headers: {
-    //         Cookie: `token=${token?.value}`
-    //     },
-    //     cache: "no-store"
-    // })
-
-    const scans = await getScans()
+    const scans = await getScans();
+    
+    console.log("ProtectedLayout - Got scans:", scans?.length || 0);
 
     return <ProtectedLayoutClient scans={scans}>{children}</ProtectedLayoutClient>;
 

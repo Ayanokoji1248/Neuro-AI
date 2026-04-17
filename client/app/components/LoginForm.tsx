@@ -72,20 +72,26 @@ const LoginForm = ({ redirectTo = "/dashboard" }: LoginFormProps) => {
                     throw new Error(data.message || "OTP verification failed")
                 }
 
+                console.log("OTP verified successfully");
+
                 // After login, determine where to redirect based on role
                 const meRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/user/me`, {
                     method: "GET",
                     credentials: "include",
+                    cache: "no-store",
                 })
 
                 const meData = await meRes.json()
                 const role = meData?.user?.role
+                console.log("User role fetched:", role);
 
                 toast.success("Login successful")
 
                 if (role === "admin") {
+                    console.log("Redirecting to /admin");
                     router.replace("/admin")
                 } else {
+                    console.log("Redirecting to", redirectTo);
                     router.replace(redirectTo)
                 }
             }
