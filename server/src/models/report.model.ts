@@ -35,6 +35,26 @@ const reportSchema = new Schema({
         required: true
     },
 
+    overlayUrl: {
+        type: String,
+        required: false
+    },
+
+    maskUrl: {
+        type: String,
+        required: false
+    },
+
+    coloredMaskUrl: {
+        type: String,
+        required: false
+    },
+
+    flairPreviewUrl: {
+        type: String,
+        required: false
+    },
+
     // AI detection result
     result: {
         type: String,

@@ -38,24 +38,16 @@ export default async function DashboardPage() {
                             className="group bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl hover:border-indigo-100 transition-all cursor-pointer flex flex-col h-full"
                         >
                             <div className="relative aspect-4/3 bg-slate-900 overflow-hidden">
-                                {/* Placeholder image since imageUrl is "tempfileURL" */}
                                 <Image
                                     fill
-                                    src={file.imageUrl !== "tempfileURL" ? file.imageUrl : "/placeholder-mri.jpg"}
+                                    src={file.overlayUrl ?? file.imageUrl}
                                     alt={`MRI scan of ${file.patientName}`}
-                                    className="object-cover group-hover:scale-110 transition-transform duration-500 opacity-90 group-hover:opacity-100"
+                                    className="object-cover transition-transform duration-500 group-hover:scale-110 opacity-90 group-hover:opacity-100"
                                 />
 
                                 <div className="absolute top-4 left-4">
-                                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${file.result === "Pending"
-                                        ? "bg-yellow-500 text-white animate-pulse"
-                                        : file.result === "High Risk"
-                                            ? "bg-red-500 text-white"
-                                            : file.result === "Moderate Risk"
-                                                ? "bg-yellow-500 text-white"
-                                                : "bg-green-500 text-white"
-                                        }`}>
-                                        {file.result}
+                                    <span className="rounded-full bg-slate-950/70 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-white backdrop-blur-sm">
+                                        Generated
                                     </span>
                                 </div>
                             </div>
@@ -80,15 +72,9 @@ export default async function DashboardPage() {
                                 </p>
 
                                 <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
-                                    <div className="flex -space-x-1.5">
-                                        <div className="w-6 h-6 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[8px] font-bold text-slate-400">
-                                            AI
-                                        </div>
-                                        <div className="w-6 h-6 rounded-full border-2 border-white bg-indigo-500 flex items-center justify-center text-[8px] font-bold text-white shadow-sm">
-                                            {file.confidence ? `${file.confidence}%` : "N/A"}
-                                        </div>
-                                    </div>
-
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                                        View Outputs
+                                    </p>
                                     <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-indigo-500" />
                                 </div>
                             </div>

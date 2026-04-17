@@ -9,10 +9,15 @@ import reportRouter from "./routes/report.route.js"
 dotenv.config({})
 
 const app = express()
+const port = Number(process.env.PORT ?? 5000);
+const allowedOrigins = (process.env.CLIENT_URL ?? "http://localhost:3000")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 
 app.use(cors({
-    origin: 'http://localhost:3000', // Your Next.js URL
-    credentials: true, // This is ESSENTIAL
+    origin: allowedOrigins,
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }))
@@ -28,8 +33,8 @@ app.use('/api/reports', reportRouter)
 async function main() {
 
     await dbConnection();
-    app.listen(5000, () => {
-        console.log("Server running on port 3000")
+    app.listen(port, () => {
+        console.log(`Server running on port ${port}`)
     })
 }
 

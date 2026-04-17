@@ -1,25 +1,46 @@
+import { Calendar, ChevronDown, FileImage, Loader2, Upload, User, Users, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import React, { useState } from "react";
+import { toast } from "sonner";
+import { uploadScanSchema } from "../validations/scan";
 
-import { Calendar, ChevronDown, FileImage, Loader2, Upload, User, Users, X } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import React, { useState } from 'react'
-import { toast } from 'sonner';
-import { uploadScan } from '../actions/scan';
-import { uploadToCloudinary } from '../utils/cloudinary';
-import { uploadScanSchema } from '../validations/scan';
+const scanFileFields = [
+    { name: "flairFile", label: "FLAIR MRI", description: "Required .nii or .nii.gz file" },
+    { name: "t1File", label: "T1 MRI", description: "Required .nii or .nii.gz file" },
+    { name: "t2File", label: "T2 MRI", description: "Required .nii or .nii.gz file" },
+    { name: "t1ceFile", label: "T1CE MRI", description: "Required .nii or .nii.gz file" },
+] as const;
+
+type ScanFileFieldName = (typeof scanFileFields)[number]["name"];
+
+type ScanFormState = {
+    patientName: string;
+    patientAge: string;
+    patientGender: string;
+    flairFile: File | null;
+    t1File: File | null;
+    t2File: File | null;
+    t1ceFile: File | null;
+};
+
+const initialFormState: ScanFormState = {
+    patientName: "",
+    patientAge: "",
+    patientGender: "",
+    flairFile: null,
+    t1File: null,
+    t2File: null,
+    t1ceFile: null,
+};
 
 const ModalForm = ({ setOpen }: {
     setOpen: (value: boolean) => void
 }) => {
-
-    const router = useRouter()
+    const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
-    const [formData, setFormData] = useState({
-        patientName: "",
-        patientAge: "",
-        patientGender: "",
-        imageUrl: null as File | null,
-    });
+    const [fileInputResetKey, setFileInputResetKey] = useState(0);
+    const [formData, setFormData] = useState<ScanFormState>(initialFormState);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -29,154 +50,101 @@ const ModalForm = ({ setOpen }: {
         }));
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setFormData((prev) => ({
-                ...prev,
-                imageUrl: e.target.files![0],
-            }));
-            // Clear file error when user selects a file
-            setErrors((prev) => {
-                const newErrors = { ...prev };
-                delete newErrors.imageUrl;
-                return newErrors;
-            });
-        }
+    const handleFileChange = (fieldName: ScanFileFieldName) => (
+        e: React.ChangeEvent<HTMLInputElement>
+    ) => {
+        const file = e.target.files?.[0] ?? null;
+
+        setFormData((prev) => ({
+            ...prev,
+            [fieldName]: file,
+        }));
+
+        setErrors((prev) => {
+            const newErrors = { ...prev };
+            delete newErrors[fieldName];
+            return newErrors;
+        });
+    };
+
+    const resetForm = () => {
+        setFormData(initialFormState);
+        setErrors({});
+        setFileInputResetKey((prev) => prev + 1);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setErrors({}); // Clear previous errors
+        setErrors({});
 
         try {
-            // Validate form data with Zod
             const result = uploadScanSchema.safeParse({
                 patientName: formData.patientName,
                 patientAge: formData.patientAge,
                 patientGender: formData.patientGender,
-                imageUrl: formData.imageUrl,
+                flairFile: formData.flairFile,
+                t1File: formData.t1File,
+                t2File: formData.t2File,
+                t1ceFile: formData.t1ceFile,
             });
 
             if (!result.success) {
-                // Map validation errors
                 const newErrors: Record<string, string> = {};
-                if (result.error.issues) {
-                    result.error.issues.forEach((issue) => {
-                        const path = issue.path[0] as string;
-                        newErrors[path] = issue.message;
-                    });
-                }
+
+                result.error.issues.forEach((issue) => {
+                    const path = issue.path[0] as string;
+                    newErrors[path] = issue.message;
+                });
+
                 setErrors(newErrors);
-                toast.error('Please fix the validation errors');
+                toast.error("Please fix the validation errors");
                 return;
             }
 
             setIsLoading(true);
-
-            // Check file with VirusTotal for malware
-            const vtToastId = toast.loading('Scanning file for malware...');
-            try {
-                if (!formData.imageUrl) {
-                    toast.dismiss(vtToastId);
-                    toast.error('No file selected');
-                    setIsLoading(false);
-                    return;
-                }
-                const vtFormData = new FormData();
-                vtFormData.append('file', formData.imageUrl);
-                const vtResponse = await fetch('https://www.virustotal.com/api/v3/files', {
-                    method: 'POST',
-                    body: vtFormData,
-                    headers: {
-                        'x-apikey': process.env.NEXT_PUBLIC_VIRUS_TOTAL as string
-                    }
-                });
-                if (!vtResponse.ok) {
-                    throw new Error('Failed to upload file to VirusTotal');
-                }
-                const vtData = await vtResponse.json();
-                const analysisId = vtData.data.id;
-
-                // Poll for analysis results
-                let analysis;
-                let attempts = 0;
-                const maxAttempts = 12; // Max 1 minute (12 * 5s)
-                do {
-                    await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
-                    const response = await fetch(`https://www.virustotal.com/api/v3/analyses/${analysisId}`, {
-                        headers: {
-                            'x-apikey': process.env.NEXT_PUBLIC_VIRUS_TOTAL as string
-                        }
-                    });
-                    analysis = await response.json();
-                    attempts++;
-                } while (analysis.data.attributes.status !== 'completed' && attempts < maxAttempts);
-
-                if (analysis.data.attributes.status !== 'completed') {
-                    throw new Error('Scan timeout');
-                }
-
-                const stats = analysis.data.attributes.stats;
-                if (stats.malicious > 0 || stats.suspicious > 0) {
-                    toast.dismiss(vtToastId);
-                    toast.error('File detected as malicious or suspicious. Upload aborted.');
-                    setIsLoading(false);
-                    return;
-                }
-
-                toast.dismiss(vtToastId);
-                toast.success('File scan passed.');
-            } catch (error) {
-                console.error('VirusTotal scan error:', error);
-                toast.dismiss(vtToastId);
-                toast.error('Failed to scan file. Please try again.');
-                setIsLoading(false);
-                return;
-            }
-
-            // Upload file to Cloudinary first
-            let imageUrl = null;
-            if (formData.imageUrl) {
-                const toastId = toast.loading('Uploading image to cloud...');
-                imageUrl = await uploadToCloudinary(formData.imageUrl);
-                
-                if (!imageUrl) {
-                    toast.dismiss(toastId); // Dismiss loading toast
-                    toast.error('Failed to upload image to Cloudinary. Please check console for details.');
-                    setIsLoading(false);
-                    return;
-                }
-                toast.dismiss(toastId); // Dismiss loading toast on success
-            }
-
-            // Create FormData for backend
             const data = new FormData();
-            data.append("patientName", formData.patientName);
-            data.append("patientAge", formData.patientAge);
-            data.append("patientGender", formData.patientGender);
-            data.append("imageUrl", imageUrl || "");
+            data.append("patientName", result.data.patientName);
+            data.append("patientAge", result.data.patientAge);
+            data.append("patientGender", result.data.patientGender);
+            data.append("flairFile", result.data.flairFile);
+            data.append("t1File", result.data.t1File);
+            data.append("t2File", result.data.t2File);
+            data.append("t1ceFile", result.data.t1ceFile);
 
-            // Call server action
-            const response = await uploadScan(data);
+            const analysisToastId = toast.loading("Scanning files and analyzing MRI...");
+            let response: { success: boolean; error?: string };
 
-            if (response.success) {
-                toast.success('Scan uploaded successfully!');
-                setOpen(false);
-                router.refresh(); // Refresh to show new data
-
-                // Reset form
-                setFormData({
-                    patientName: "",
-                    patientAge: "",
-                    patientGender: "",
-                    imageUrl: null,
+            try {
+                const uploadResponse = await fetch("/api/scan", {
+                    method: "POST",
+                    body: data,
+                    credentials: "include",
                 });
-            } else {
-                toast.error(response.error || 'Upload failed');
+
+                const responseData = await uploadResponse.json() as {
+                    message?: string;
+                    error?: string;
+                };
+
+                response = {
+                    success: uploadResponse.ok,
+                    error: responseData.error ?? responseData.message,
+                };
+            } finally {
+                toast.dismiss(analysisToastId);
             }
+
+            if (!response.success) {
+                throw new Error(response.error || "Failed to save scan");
+            }
+
+            toast.success("Scan verified and saved successfully");
+            setOpen(false);
+            resetForm();
+            router.refresh();
         } catch (error) {
             console.error(error);
-            toast.error('Something went wrong');
+            toast.error(error instanceof Error ? error.message : "Something went wrong");
         } finally {
             setIsLoading(false);
         }
@@ -184,51 +152,42 @@ const ModalForm = ({ setOpen }: {
 
     return (
         <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
-
-            {/* Overlay */}
             <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
                 onClick={() => setOpen(false)}
             />
 
-            {/* Modal Card */}
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-
-                {/* Header Section */}
-                <div className="bg-linear-to-br from-indigo-600 to-indigo-700 px-8 py-6 relative">
-                    {/* Close Button */}
+            <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                <div className="relative bg-linear-to-br from-indigo-600 to-indigo-700 px-8 py-6">
                     <button
                         onClick={() => setOpen(false)}
-                        className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors p-1.5 hover:bg-white/10 rounded-lg"
+                        className="absolute top-4 right-4 rounded-lg p-1.5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
                     >
-                        <X className="w-5 h-5" />
+                        <X className="h-5 w-5" />
                     </button>
 
                     <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                            <Upload className="w-6 h-6 text-white" />
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+                            <Upload className="h-6 w-6 text-white" />
                         </div>
                         <div>
                             <h2 className="text-2xl font-black text-white">
                                 Upload MRI Scan
                             </h2>
-                            <p className="text-indigo-100 text-sm font-medium mt-0.5">
-                                Add new patient scan for analysis
+                            <p className="mt-0.5 text-sm font-medium text-indigo-100">
+                                Submit all 4 MRI modalities for tumor segmentation
                             </p>
                         </div>
                     </div>
                 </div>
 
-                {/* Form Section */}
-                <form onSubmit={handleSubmit} className="p-8 space-y-5">
-
-                    {/* Patient Name */}
+                <form onSubmit={handleSubmit} className="space-y-5 p-8">
                     <div>
-                        <label className="block text-xs font-black text-slate-700 mb-2 uppercase tracking-wider">
+                        <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-700">
                             Patient Name
                         </label>
                         <div className="relative">
-                            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                             <input
                                 type="text"
                                 name="patientName"
@@ -236,7 +195,7 @@ const ModalForm = ({ setOpen }: {
                                 value={formData.patientName}
                                 onChange={handleChange}
                                 placeholder="Enter patient name"
-                                className={`w-full pl-10 pr-4 py-2.5 border rounded-xl bg-slate-50/50 focus:bg-white focus:ring-2 outline-none transition-all text-sm font-medium ${
+                                className={`w-full rounded-xl border bg-slate-50/50 py-2.5 pr-4 pl-10 text-sm font-medium outline-none transition-all focus:bg-white focus:ring-2 ${
                                     errors.patientName
                                         ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                                         : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/20"
@@ -244,20 +203,17 @@ const ModalForm = ({ setOpen }: {
                             />
                         </div>
                         {errors.patientName && (
-                            <p className="text-red-500 text-xs mt-1">{errors.patientName}</p>
+                            <p className="mt-1 text-xs text-red-500">{errors.patientName}</p>
                         )}
                     </div>
 
-                    {/* Age & Gender Row */}
                     <div className="grid grid-cols-2 gap-4">
-
-                        {/* Age */}
                         <div>
-                            <label className="block text-xs font-black text-slate-700 mb-2 uppercase tracking-wider">
+                            <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-700">
                                 Age
                             </label>
                             <div className="relative">
-                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                                 <input
                                     type="number"
                                     name="patientAge"
@@ -265,7 +221,7 @@ const ModalForm = ({ setOpen }: {
                                     value={formData.patientAge}
                                     onChange={handleChange}
                                     placeholder="0"
-                                    className={`w-full pl-10 pr-4 py-2.5 border rounded-xl bg-slate-50/50 focus:bg-white focus:ring-2 outline-none transition-all text-sm font-medium ${
+                                    className={`w-full rounded-xl border bg-slate-50/50 py-2.5 pr-4 pl-10 text-sm font-medium outline-none transition-all focus:bg-white focus:ring-2 ${
                                         errors.patientAge
                                             ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                                             : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/20"
@@ -273,23 +229,22 @@ const ModalForm = ({ setOpen }: {
                                 />
                             </div>
                             {errors.patientAge && (
-                                <p className="text-red-500 text-xs mt-1">{errors.patientAge}</p>
+                                <p className="mt-1 text-xs text-red-500">{errors.patientAge}</p>
                             )}
                         </div>
 
-                        {/* Gender */}
                         <div>
-                            <label className="block text-xs font-black text-slate-700 mb-2 uppercase tracking-wider">
+                            <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-700">
                                 Gender
                             </label>
                             <div className="relative">
-                                <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                <Users className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                                 <select
                                     name="patientGender"
                                     required
                                     value={formData.patientGender}
                                     onChange={handleChange}
-                                    className={`w-full pl-10 pr-4 py-2.5 border rounded-xl bg-slate-50/50 focus:bg-white focus:ring-2 outline-none transition-all text-sm font-medium appearance-none cursor-pointer ${
+                                    className={`w-full appearance-none rounded-xl border bg-slate-50/50 py-2.5 pr-10 pl-10 text-sm font-medium outline-none transition-all focus:bg-white focus:ring-2 ${
                                         errors.patientGender
                                             ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                                             : "border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/20"
@@ -300,92 +255,92 @@ const ModalForm = ({ setOpen }: {
                                     <option value="Female">Female</option>
                                     <option value="Other">Other</option>
                                 </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                             </div>
                             {errors.patientGender && (
-                                <p className="text-red-500 text-xs mt-1">{errors.patientGender}</p>
+                                <p className="mt-1 text-xs text-red-500">{errors.patientGender}</p>
                             )}
                         </div>
-
                     </div>
 
-                    {/* File Upload */}
-                    <div>
-                        <label className="block text-xs font-black text-slate-700 mb-2 uppercase tracking-wider">
-                            MRI Image
-                        </label>
+                    <div className="grid gap-4 md:grid-cols-2">
+                        {scanFileFields.map((field) => (
+                            <div key={field.name}>
+                                <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-700">
+                                    {field.label}
+                                </label>
 
-                        <label
-                            htmlFor="file-upload"
-                            className={`relative block w-full border-2 border-dashed rounded-xl px-4 py-8 
-                   transition-colors cursor-pointer
-                   bg-slate-50/50 group ${
-                       errors.imageUrl
-                           ? "border-red-400 hover:border-red-300 hover:bg-red-50/20"
-                           : "border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30"
-                   }`}
-                        >
-                            <input
-                                name='imageUrl'
-                                id="file-upload"
-                                type="file"
-                                accept="image/*"
-                                onChange={handleFileChange}
-                                className="hidden"
-                            />
+                                <label
+                                    htmlFor={field.name}
+                                    className={`group block cursor-pointer rounded-xl border-2 border-dashed bg-slate-50/50 px-4 py-6 transition-colors ${
+                                        errors[field.name]
+                                            ? "border-red-400 hover:border-red-300 hover:bg-red-50/20"
+                                            : "border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30"
+                                    }`}
+                                >
+                                    <input
+                                        key={`${field.name}-${fileInputResetKey}`}
+                                        id={field.name}
+                                        type="file"
+                                        accept=".nii,.nii.gz,application/gzip"
+                                        onChange={handleFileChange(field.name)}
+                                        className="hidden"
+                                    />
 
-                            <div className={`flex flex-col items-center justify-center transition-colors ${
-                                errors.imageUrl
-                                    ? "text-red-500 group-hover:text-red-600"
-                                    : "text-slate-400 group-hover:text-indigo-500"
-                            }`}>
-                                <FileImage className="w-8 h-8 mb-2" />
-                                {formData.imageUrl ? (
-                                    <div className="text-center">
-                                        <p className="text-sm font-bold text-slate-700">{formData.imageUrl.name}</p>
-                                        <p className="text-xs text-slate-500 mt-1">Click to change file</p>
+                                    <div className={`flex flex-col items-center justify-center text-center transition-colors ${
+                                        errors[field.name]
+                                            ? "text-red-500 group-hover:text-red-600"
+                                            : "text-slate-400 group-hover:text-indigo-500"
+                                    }`}>
+                                        <FileImage className="mb-2 h-7 w-7" />
+                                        {formData[field.name] ? (
+                                            <>
+                                                <p className="max-w-full truncate text-sm font-bold text-slate-700">
+                                                    {formData[field.name]?.name}
+                                                </p>
+                                                <p className="mt-1 text-[11px] text-slate-500">
+                                                    Click to replace file
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <p className="text-xs font-semibold">Choose file</p>
+                                                <p className="mt-1 text-[11px] text-slate-400">
+                                                    {field.description}
+                                                </p>
+                                            </>
+                                        )}
                                     </div>
-                                ) : (
-                                    <div className="text-center">
-                                        <p className="text-xs font-semibold">Click to browse files</p>
-                                        <p className="text-[10px] text-slate-400 mt-1">PNG, JPG up to 10MB</p>
-                                    </div>
+                                </label>
+
+                                {errors[field.name] && (
+                                    <p className="mt-1 text-xs text-red-500">{errors[field.name]}</p>
                                 )}
                             </div>
-                        </label>
-                        {errors.imageUrl && (
-                            <p className="text-red-500 text-xs mt-1">{errors.imageUrl}</p>
-                        )}
+                        ))}
                     </div>
 
-                    {/* Submit Button */}
                     <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full bg-linear-to-r from-indigo-600 to-indigo-700 text-white py-3 rounded-xl font-black text-sm
-                           hover:from-indigo-700 hover:to-indigo-800 
-                           disabled:opacity-50 disabled:cursor-not-allowed
-                           shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300
-                           transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-indigo-600 to-indigo-700 py-3 text-sm font-black text-white shadow-lg shadow-indigo-200 transition-all hover:from-indigo-700 hover:to-indigo-800 hover:shadow-xl hover:shadow-indigo-300 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {isLoading ? (
                             <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                Uploading...
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Analyzing...
                             </>
                         ) : (
                             <>
-                                <Upload className="w-4 h-4" />
-                                Upload Scan
+                                <Upload className="h-4 w-4" />
+                                Analyze And Save Scan
                             </>
                         )}
                     </button>
-
                 </form>
-
             </div>
         </div>
-    )
-}
+    );
+};
 
-export default ModalForm
+export default ModalForm;

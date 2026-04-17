@@ -590,15 +590,15 @@ export default function AdminDashboardPage() {
                                                         <p className="text-sm font-bold text-slate-900">{report.patientName}</p>
                                                         <p className="mt-1 text-xs text-slate-500">{report.patientGender}</p>
                                                     </div>
-                                                    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${badgeClasses[report.result] ?? "bg-slate-100 text-slate-700 border-slate-200"}`}>
-                                                        {report.result}
+                                                    <span className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                                                        Hidden
                                                     </span>
                                                 </div>
                                                 <div className="mt-4 flex items-end justify-between gap-4">
                                                     <div>
-                                                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Confidence</p>
+                                                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Result</p>
                                                         <p className="text-lg font-black text-slate-900">
-                                                            {report.confidence === null ? "N/A" : `${report.confidence}%`}
+                                                            Hidden
                                                         </p>
                                                     </div>
                                                     <p className="text-xs text-slate-500">

@@ -1,16 +1,45 @@
 import type { Request, Response } from "express";
 import Report from "../models/report.model.js";
+import { createReportSchema } from "../validations/report.validation.js";
 
 export const createReport = async (req: Request, res: Response) => {
     try {
-        const { patientName, patientAge, patientGender, imageUrl } = req.body;
+        if (!req.user?.userId) {
+            return res.status(401).json({
+                message: "Unauthorized",
+            });
+        }
+
+        const validationResult = createReportSchema.safeParse(req.body);
+
+        if (!validationResult.success) {
+            return res.status(400).json({
+                message: "Validation failed",
+                errors: validationResult.error.flatten().fieldErrors,
+            });
+        }
+
+        const {
+            patientName,
+            patientAge,
+            patientGender,
+            imageUrl,
+            overlayUrl,
+            maskUrl,
+            coloredMaskUrl,
+            flairPreviewUrl,
+        } = validationResult.data;
 
         const report = new Report({
             patientName,
             patientAge,
             patientGender,
             imageUrl,
-            user: req.user?.userId
+            overlayUrl,
+            maskUrl,
+            coloredMaskUrl,
+            flairPreviewUrl,
+            user: req.user.userId,
         });
 
         await report.save();
@@ -33,7 +62,18 @@ export const getSingleReport = async (req: Request, res: Response) => {
     try {
         const reportId = req.params.id;
 
-        const report = await Report.findById(reportId);
+        if (!req.user?.userId) {
+            return res.status(401).json({
+                message: "Unauthorized",
+            });
+        }
+
+        const reportQuery =
+            req.user.role === "admin"
+                ? { _id: reportId }
+                : { _id: reportId, user: req.user.userId };
+
+        const report = await Report.findOne(reportQuery);
 
         if (!report) {
             return res.status(404).json({
@@ -58,8 +98,13 @@ export const getSingleReport = async (req: Request, res: Response) => {
 export const getMyReports = async (req: Request, res: Response) => {
 
     try {
+        if (!req.user?.userId) {
+            return res.status(401).json({
+                message: "Unauthorized",
+            });
+        }
 
-        const userId = req.user!.userId;
+        const userId = req.user.userId;
 
         const reports = await Report.find({ user: userId })
             .sort({ createdAt: -1 })
@@ -84,11 +129,17 @@ export const getMyReports = async (req: Request, res: Response) => {
 
 export const deleteSingleReport = async (req: Request, res: Response) => {
     try {
+        if (!req.user?.userId) {
+            return res.status(401).json({
+                message: "Unauthorized",
+            });
+        }
+
         const reportId = req.params.id;
 
         const report = await Report.findOneAndDelete({
             _id: reportId,
-            user: req.user?.userId,
+            user: req.user.userId,
         });
 
         if (!report) {

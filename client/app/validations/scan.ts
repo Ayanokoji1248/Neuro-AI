@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+const niftiFileSchema = z
+    .instanceof(File, { message: "Please select a file" })
+    .refine((file) => file.size > 0, "File is required")
+    .refine(
+        (file) => /\.nii(\.gz)?$/i.test(file.name),
+        "File must be in .nii or .nii.gz format"
+    );
+
 export const uploadScanSchema = z.object({
     patientName: z
         .string()
@@ -14,14 +22,10 @@ export const uploadScanSchema = z.object({
     patientGender: z.enum(["Male", "Female", "Other"], {
         message: "Please select a valid gender",
     }),
-    imageUrl: z
-        .instanceof(File, { message: "Please select an image file" })
-        .refine((file) => file.size > 0, "Image file is required")
-        .refine((file) => file.size <= 10 * 1024 * 1024, "Image must be less than 10MB")
-        .refine(
-            (file) => ["image/jpeg", "image/png", "image/jpg"].includes(file.type),
-            "Image must be JPEG or PNG"
-        ),
+    flairFile: niftiFileSchema,
+    t1File: niftiFileSchema,
+    t2File: niftiFileSchema,
+    t1ceFile: niftiFileSchema,
 });
 
 export type UploadScanInput = z.infer<typeof uploadScanSchema>;
