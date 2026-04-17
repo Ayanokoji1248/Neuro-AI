@@ -18,8 +18,9 @@ export const getScans = cache(async () => {
 
     try {
         console.log("getScans - Fetching reports from backend");
+        const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
         const scanRes = await fetch(
-            `${process.env.NEXT_PUBLIC_BACKEND_URL}/reports/my`,
+            `${backendUrl}/reports/my`,
             {
                 method: "GET",
                 headers: {

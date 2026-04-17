@@ -9,7 +9,7 @@ const BRAIN_TUMOR_API_BASE_URL =
     process.env.NEXT_PUBLIC_BRAIN_TUMOR_API_BASE_URL ??
     "https://aryan1359-brain-tumor-api.hf.space";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
 type BrainTumorPredictionResult = {
     imageUrl: string;
     overlayUrl: string;

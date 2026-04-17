@@ -229,7 +229,8 @@ export async function uploadScan(formData: FormData) {
             t1ceFile,
         })
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/reports/create`, {
+        const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
+        const response = await fetch(`${backendUrl}/reports/create`, {
             method: 'POST',
             body: JSON.stringify({
                 patientName,

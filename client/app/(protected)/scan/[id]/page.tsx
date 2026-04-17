@@ -13,7 +13,8 @@ async function getScan(id: string): Promise<Scan> {
         redirect("/login");
     }
 
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/reports/${id}`, {
+    const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
+    const response = await fetch(`${backendUrl}/reports/${id}`, {
         method: "GET",
         headers: {
             Cookie: `token=${token.value}`,

@@ -175,9 +175,10 @@ export const logoutUser = async (req: Request, res: Response) => {
         // 1. Clear the cookie by name (usually 'token' or 'session')
         res.cookie("token", "", {
             httpOnly: true,
-            secure: false, // Set to true if using HTTPS
-            sameSite: "lax",
-            expires: new Date(0), // Sets expiration to 1970 (immediate deletion)
+            secure: process.env.NODE_ENV === "production",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+            expires: new Date(0),
+            path: "/"
         });
 
         // 2. Send a success response
@@ -247,15 +248,29 @@ export const verifyOtp = async (req: Request, res: Response) => {
     const token = generateToken(finalUserId, user.role);
     console.log("Setting cookie for user:", finalUserId, "with role:", user.role);
     
+    const isProduction = process.env.NODE_ENV === "production";
+    const origin = req.headers.origin || req.headers.referer;
+    
+    console.log("Request origin:", origin);
+    console.log("NODE_ENV:", process.env.NODE_ENV);
+    
+    // For production or cross-origin requests, use stricter settings
+    // For production (especially when proxied), use Secure and SameSite=None if cross-origin
+    // But since we are using Next.js Rewrites, it will be same-origin from the browser's perspective.
+    // However, keeping these settings is safer for various deployment scenarios.
+    const sameSite = isProduction ? "none" : "lax";
+    const secure = isProduction;
+    
+    console.log("Cookie settings - SameSite:", sameSite, "Secure:", secure);
+    
     res.cookie("token", token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        secure: secure,
+        sameSite: sameSite,
         maxAge: 7 * 24 * 60 * 60 * 1000,
-        path: "/"
+        path: "/",
+        // domain: isProduction ? ".vercel.app" : undefined // Optional: only if needed for subdomains
     });
-
-    console.log("Cookie set. NODE_ENV:", process.env.NODE_ENV);
 
     return res.json({ message: "Login successful" });
 };
