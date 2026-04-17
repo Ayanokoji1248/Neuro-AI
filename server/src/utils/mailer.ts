@@ -10,7 +10,7 @@ const transporter = nodemailer.createTransport({
 });
 
 // Verify connection once at startup
-transporter.verify((error, success) => {
+transporter.verify((error: Error | null, success: boolean) => {
     if (error) {
         console.log("Mail server error:", error);
     } else {
