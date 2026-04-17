@@ -53,12 +53,15 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, scans }: SidebarP
         try {
             const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/logout`, {
                 method: "POST",
-                credentials: "include"
             })
 
             if (!res.ok) {
                 throw new Error("Logged Out failed")
             }
+
+            // Clear the cookie via Server Action
+            const { clearAuthCookie } = await import("@/app/actions/auth");
+            await clearAuthCookie();
 
             router.replace('/login')
             // router.refresh()

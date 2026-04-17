@@ -31,7 +31,6 @@ const SignUpForm = () => {
             if (!loginSessionId) {
                 const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/register`, {
                     method: "POST",
-                    credentials: "include",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ fullName, email, password, role }),
                 });
@@ -46,12 +45,17 @@ const SignUpForm = () => {
                 // verify otp
                 const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/verify-otp`, {
                     method: "POST",
-                    credentials: "include",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ loginSessionId, otp })
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.message || "OTP verification failed");
+
+                // Set the cookie via Server Action
+                if (data.token) {
+                    const { setAuthCookie } = await import("@/app/actions/auth");
+                    await setAuthCookie(data.token);
+                }
 
                 toast.success("Signup successful");
                 router.replace("/dashboard");

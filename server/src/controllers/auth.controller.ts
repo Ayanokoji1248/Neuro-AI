@@ -272,5 +272,14 @@ export const verifyOtp = async (req: Request, res: Response) => {
         // domain: isProduction ? ".vercel.app" : undefined // Optional: only if needed for subdomains
     });
 
-    return res.json({ message: "Login successful" });
+    return res.json({ 
+        message: "Login successful", 
+        token, 
+        user: { 
+            id: user._id, 
+            fullName: user.fullName, 
+            email: user.email, 
+            role: user.role 
+        } 
+    });
 };

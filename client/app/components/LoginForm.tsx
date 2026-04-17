@@ -37,7 +37,6 @@ const LoginForm = ({ redirectTo = "/dashboard" }: LoginFormProps) => {
                 // first step: credentials
                 const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/login`, {
                     method: "POST",
-                    credentials: "include",
                     body: JSON.stringify({ email, password }),
                     headers: {
                         "Content-Type": "application/json"
@@ -62,7 +61,6 @@ const LoginForm = ({ redirectTo = "/dashboard" }: LoginFormProps) => {
                 // second step: verify OTP
                 const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/verify-otp`, {
                     method: "POST",
-                    credentials: "include",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ loginSessionId, otp })
                 })
@@ -72,18 +70,16 @@ const LoginForm = ({ redirectTo = "/dashboard" }: LoginFormProps) => {
                     throw new Error(data.message || "OTP verification failed")
                 }
 
-                console.log("OTP verified successfully");
+                console.log("OTP verified successfully, received token");
 
-                // After login, determine where to redirect based on role
-                const meRes = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/user/me`, {
-                    method: "GET",
-                    credentials: "include",
-                    cache: "no-store",
-                })
+                // Set the cookie via Server Action to ensure it's on the frontend domain
+                if (data.token) {
+                    const { setAuthCookie } = await import("@/app/actions/auth");
+                    await setAuthCookie(data.token);
+                }
 
-                const meData = await meRes.json()
-                const role = meData?.user?.role
-                console.log("User role fetched:", role);
+                const role = data?.user?.role;
+                console.log("User role from response:", role);
 
                 toast.success("Login successful")
 
