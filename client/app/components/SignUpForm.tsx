@@ -61,7 +61,7 @@ const SignUpForm = () => {
                 router.replace("/dashboard");
             }
         } catch (err) {
-            console.log(err);
+            // console.log(err);
             toast.error("SignUp Failed");
             setError(err instanceof Error ? err.message : "Something went wrong");
         } finally {

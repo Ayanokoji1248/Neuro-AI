@@ -8,11 +8,8 @@ export const authMiddleware = (
 ) => {
 
     const token = req.cookies.token;
-    console.log("authMiddleware - token exists:", !!token);
-    console.log("authMiddleware - cookies:", Object.keys(req.cookies));
 
     if (!token) {
-        console.log("authMiddleware - No token found, returning 401");
         return res.status(401).json({
             message: "Unauthorized"
         });
@@ -25,13 +22,12 @@ export const authMiddleware = (
             process.env.JWT_SECRET as string
         ) as JwtPayload;
 
-        console.log("authMiddleware - Token decoded successfully, userId:", decoded.userId);
         req.user = decoded;
 
         next();
 
     } catch (error) {
-        console.log("authMiddleware - Token verification failed:", error);
+        // console.log("authMiddleware - Token verification failed:", error);
 
         res.status(401).json({
             message: "Invalid token"

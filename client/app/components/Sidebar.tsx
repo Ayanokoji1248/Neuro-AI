@@ -40,8 +40,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, scans }: SidebarP
             })
 
         } catch (error) {
-            console.log(error)
-
+            // console.log(error)
         }
     }
 
@@ -67,7 +66,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, scans }: SidebarP
             // router.refresh()
 
         } catch (error) {
-            console.log(error)
+            // console.log(error)
             toast.error("Logged Out failed")
         }
 

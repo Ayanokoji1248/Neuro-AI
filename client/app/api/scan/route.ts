@@ -73,7 +73,7 @@ async function predictBrainTumor(files: {
 
     const data = await response.json() as PredictionResponse;
 
-    console.log("Raw API Response from Brain Tumor API:", data);
+
 
     if (!response.ok || !data.files?.overlay) {
         throw new Error(data.message ?? "Brain tumor analysis failed");
@@ -93,7 +93,7 @@ async function predictBrainTumor(files: {
         flairPreviewUrl: toAbsoluteUrl(data.files.flair),
     };
 
-    console.log("Processed URLs:", result);
+
     
     return result;
 }
@@ -149,13 +149,7 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        console.log("Brain Tumor Prediction Result:", {
-            imageUrl: prediction.imageUrl,
-            overlayUrl: prediction.overlayUrl,
-            maskUrl: prediction.maskUrl,
-            coloredMaskUrl: prediction.coloredMaskUrl,
-            flairPreviewUrl: prediction.flairPreviewUrl,
-        });
+
 
         const backendResponse = await fetch(`${BACKEND_URL}/reports/create`, {
             method: "POST",

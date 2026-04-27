@@ -9,7 +9,7 @@ export function proxy(request: NextRequest) {
     // Check for the token in cookies
     const token = request.cookies.get('token')?.value;
 
-    console.log(`Middleware - Path: ${path}, Token exists: ${!!token}`);
+
 
     // Redirect logic
     if (isPublicPath && token) {

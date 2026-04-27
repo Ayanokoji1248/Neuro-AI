@@ -6,20 +6,14 @@ import { updateProfileSchema } from "../validations/user.validation.js";
 export const getMe = async (req: Request, res: Response) => {
     try {
         const userId = req.user?.userId;
-        console.log("getMe - userId from token:", userId);
-        console.log("getMe - req.cookies:", Object.keys(req.cookies));
-
         if (!userId) {
-            console.log("getMe - No userId in token, unauthorized");
             return res.status(401).json({
                 message: "Unauthorized"
             });
         }
 
         const user = await User.findById(userId).select("-password");
-
         if (!user) {
-            console.log("getMe - User not found for id:", userId);
             return res.status(404).json({
                 message: "User not found"
             });

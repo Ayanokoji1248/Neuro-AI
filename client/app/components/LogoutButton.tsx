@@ -10,7 +10,7 @@ const LogoutButton = () => {
 
     const logout = async () => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/login`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/logout`, {
                 method: "POST",
                 credentials: "include"
             })
@@ -23,7 +23,7 @@ const LogoutButton = () => {
             router.refresh()
 
         } catch (error) {
-            console.log(error)
+            // console.log(error)
             toast.error("Logged Out failed")
         }
 

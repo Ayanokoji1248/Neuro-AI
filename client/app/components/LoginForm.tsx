@@ -20,8 +20,6 @@ const LoginForm = ({ redirectTo = "/dashboard" }: LoginFormProps) => {
     // stable refs to each input
     const inputRefs = React.useRef<Array<HTMLInputElement | null>>(Array(6).fill(null));
 
-    // debug
-    // console.log("render, loginSessionId", loginSessionId, "otpInputs", otpInputs, "len", otpInputs.length);
     const [error, setError] = useState("")
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false)
@@ -44,7 +42,7 @@ const LoginForm = ({ redirectTo = "/dashboard" }: LoginFormProps) => {
                 })
 
                 const data = await res.json()
-                console.log("login response", data)
+
                 if (!res.ok) {
                     throw new Error(data.message || "Login failed")
                 }
@@ -70,7 +68,7 @@ const LoginForm = ({ redirectTo = "/dashboard" }: LoginFormProps) => {
                     throw new Error(data.message || "OTP verification failed")
                 }
 
-                console.log("OTP verified successfully, received token");
+
 
                 // Set the cookie via Server Action to ensure it's on the frontend domain
                 if (data.token) {
@@ -79,20 +77,19 @@ const LoginForm = ({ redirectTo = "/dashboard" }: LoginFormProps) => {
                 }
 
                 const role = data?.user?.role;
-                console.log("User role from response:", role);
+
 
                 toast.success("Login successful")
 
                 if (role === "admin") {
-                    console.log("Redirecting to /admin");
+
                     router.replace("/admin")
                 } else {
-                    console.log("Redirecting to", redirectTo);
                     router.replace(redirectTo)
                 }
             }
         } catch (err) {
-            console.log(err)
+            // console.log(err)
             toast.error("Login Failed")
             setError(err instanceof Error ? err.message : "Something went wrong")
         } finally {

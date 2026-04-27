@@ -59,7 +59,7 @@ export const registerUser = async (req: Request, res: Response) => {
         const temp = JSON.stringify({ fullName, email, password: hashedPassword, role });
         await redisClient.set(`register:session:${loginSessionId}`, temp, { EX: 300 });
 
-        console.log("OTP (register):", otp);
+        // console.log("OTP (register):", otp);
         await sendOtpEmail(email, otp);
 
         // 5. Send OTP session response (user not yet created)
@@ -126,7 +126,7 @@ export const loginUser = async (req: Request, res: Response) => {
 
         await redisClient.set(`login:user:${loginSessionId}`, user._id.toString(), { EX: 300 })
 
-        console.log("OTP: ", otp);
+        // console.log("OTP: ", otp);
         await sendOtpEmail(user.email, otp)
 
 
@@ -246,13 +246,9 @@ export const verifyOtp = async (req: Request, res: Response) => {
     }
 
     const token = generateToken(finalUserId, user.role);
-    console.log("Setting cookie for user:", finalUserId, "with role:", user.role);
     
     const isProduction = process.env.NODE_ENV === "production";
     const origin = req.headers.origin || req.headers.referer;
-    
-    console.log("Request origin:", origin);
-    console.log("NODE_ENV:", process.env.NODE_ENV);
     
     // For production or cross-origin requests, use stricter settings
     // For production (especially when proxied), use Secure and SameSite=None if cross-origin
@@ -260,8 +256,6 @@ export const verifyOtp = async (req: Request, res: Response) => {
     // However, keeping these settings is safer for various deployment scenarios.
     const sameSite = isProduction ? "none" : "lax";
     const secure = isProduction;
-    
-    console.log("Cookie settings - SameSite:", sameSite, "Secure:", secure);
     
     res.cookie("token", token, {
         httpOnly: true,
