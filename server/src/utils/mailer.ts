@@ -7,7 +7,7 @@ const resend = new Resend(process.env.RESEND_EMAIL);
 export const sendOtpEmail = async (email: string, otp: string) => {
     try {
         const data = await resend.emails.send({
-            from: 'onboarding@resend.dev',
+            from: 'krishprajapati1248@gmail.com',
             to: email,
             subject: "Your Login OTP",
             html: `
