@@ -1,31 +1,16 @@
-import nodemailer from "nodemailer";
-import dotenv from "dotenv"
-dotenv.config()
-const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
-});
+import { Resend } from 'resend';
+import dotenv from "dotenv";
+dotenv.config();
 
-// Verify connection once at startup
-transporter.verify((error: Error | null, success: boolean) => {
-    if (error) {
-        console.log("Mail server error:", error);
-    } else {
-        console.log("Mail server ready");
-    }
-});
+const resend = new Resend(process.env.RESEND_EMAIL);
 
 export const sendOtpEmail = async (email: string, otp: string) => {
-    await transporter.sendMail({
-        from: `"Your App" <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: "Your Login OTP",
-        html: `
+    try {
+        const data = await resend.emails.send({
+            from: 'onboarding@resend.dev',
+            to: email,
+            subject: "Your Login OTP",
+            html: `
   <div style="margin:0;padding:0;background-color:#f4f6f8;font-family:Arial,Helvetica,sans-serif;">
     <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
       <tr>
@@ -90,5 +75,10 @@ export const sendOtpEmail = async (email: string, otp: string) => {
     </table>
   </div>
 `
-    });
+        });
+        console.log("Mail sent successfully:", data);
+        return data;
+    } catch (error) {
+        console.error("Error sending mail via Resend:", error);
+    }
 };
