@@ -19,7 +19,6 @@ export default async function ProtectedLayout({
 
 
     if (!token) {
-    if (!token) {
         redirect("/login");
     }
 

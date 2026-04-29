@@ -31,7 +31,6 @@ export const getScans = cache(async () => {
 
 
         if (scanRes.status === 401) {
-        if (scanRes.status === 401) {
             redirect("/login");
         }
 
