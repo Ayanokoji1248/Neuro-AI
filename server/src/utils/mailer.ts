@@ -1,13 +1,34 @@
 import nodemailer from "nodemailer";
+import type SMTPTransport from "nodemailer/lib/smtp-transport/index.js";
 import dotenv from "dotenv"
 dotenv.config()
-const transporter = nodemailer.createTransport({
-    service: "gmail",
+
+const emailUser = process.env.EMAIL_USER;
+const emailPass = process.env.EMAIL_PASS;
+const smtpHost = process.env.SMTP_HOST ?? "smtp.gmail.com";
+const smtpPort = Number(process.env.SMTP_PORT ?? 587);
+const smtpSecure = process.env.SMTP_SECURE
+    ? process.env.SMTP_SECURE === "true"
+    : smtpPort === 465;
+
+if (!emailUser || !emailPass) {
+    throw new Error("EMAIL_USER and EMAIL_PASS must be set before starting the server");
+}
+
+const mailOptions: SMTPTransport.Options = {
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpSecure,
     auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: emailUser,
+        pass: emailPass,
     },
-});
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 30000,
+};
+
+const transporter = nodemailer.createTransport(mailOptions);
 
 // Verify connection once at startup
 transporter.verify((error: Error | null, success: boolean) => {
@@ -20,7 +41,7 @@ transporter.verify((error: Error | null, success: boolean) => {
 
 export const sendOtpEmail = async (email: string, otp: string) => {
     await transporter.sendMail({
-        from: `"Your App" <${process.env.EMAIL_USER}>`,
+        from: `"Your App" <${emailUser}>`,
         to: email,
         subject: "Your Login OTP",
         html: `
