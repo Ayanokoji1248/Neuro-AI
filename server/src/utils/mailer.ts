@@ -3,16 +3,18 @@ import type SMTPTransport from "nodemailer/lib/smtp-transport/index.js";
 import dotenv from "dotenv"
 dotenv.config()
 
-const emailUser = process.env.EMAIL_USER;
-const emailPass = process.env.EMAIL_PASS;
+const smtpUser = process.env.SMTP_USER ?? process.env.EMAIL_USER;
+const smtpPass = process.env.SMTP_PASS ?? process.env.EMAIL_PASS;
+const fromEmail = process.env.MAIL_FROM ?? smtpUser;
+const fromName = process.env.MAIL_FROM_NAME ?? "Neuro AI";
 const smtpHost = process.env.SMTP_HOST ?? "smtp.gmail.com";
 const smtpPort = Number(process.env.SMTP_PORT ?? 587);
 const smtpSecure = process.env.SMTP_SECURE
     ? process.env.SMTP_SECURE === "true"
     : smtpPort === 465;
 
-if (!emailUser || !emailPass) {
-    throw new Error("EMAIL_USER and EMAIL_PASS must be set before starting the server");
+if (!smtpUser || !smtpPass) {
+    throw new Error("SMTP_USER and SMTP_PASS must be set before starting the server");
 }
 
 const mailOptions: SMTPTransport.Options = {
@@ -20,8 +22,8 @@ const mailOptions: SMTPTransport.Options = {
     port: smtpPort,
     secure: smtpSecure,
     auth: {
-        user: emailUser,
-        pass: emailPass,
+        user: smtpUser,
+        pass: smtpPass,
     },
     connectionTimeout: 15000,
     greetingTimeout: 15000,
@@ -41,7 +43,7 @@ transporter.verify((error: Error | null, success: boolean) => {
 
 export const sendOtpEmail = async (email: string, otp: string) => {
     await transporter.sendMail({
-        from: `"Your App" <${emailUser}>`,
+        from: `"${fromName}" <${fromEmail}>`,
         to: email,
         subject: "Your Login OTP",
         html: `
@@ -97,7 +99,7 @@ export const sendOtpEmail = async (email: string, otp: string) => {
             <tr>
               <td>
                 <p style="margin:16px 0 0;font-size:12px;color:#9ca3af;">
-                  If you didn’t request this, you can safely ignore this email.
+                  If you did not request this, you can safely ignore this email.
                 </p>
               </td>
             </tr>
