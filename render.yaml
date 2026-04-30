@@ -1,0 +1,73 @@
+services:
+  # ──────────────────────────────────
+  # Backend – Express + TypeScript
+  # ──────────────────────────────────
+  - type: web
+    name: neuro-ai-server
+    runtime: node
+    region: singapore  # closest to India — change if needed
+    plan: free         # free tier; upgrade to "starter" for always-on
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URL
+        sync: false   # Render will prompt you to enter the value manually
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      - key: SMTP_HOST
+        value: smtp-relay.brevo.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_SECURE
+        value: "false"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_FROM
+        value: krishprajapati1248@gmail.com
+      - key: MAIL_FROM_NAME
+        value: Neuro AI
+      - key: RESEND_EMAIL
+        sync: false
+      - key: BREVO_KEY
+        sync: false
+      - key: CLIENT_URL
+        sync: false   # set this to your frontend Render URL after deploy
+
+  # ──────────────────────────────────
+  # Frontend – Next.js
+  # ──────────────────────────────────
+  - type: web
+    name: neuro-ai-client
+    runtime: node
+    region: singapore
+    plan: free
+    rootDir: client
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: BACKEND_URL
+        sync: false
+        # After deploy, set this to: https://neuro-ai-server.onrender.com/api
+        # Your next.config.ts rewrites /api/:path* → ${BACKEND_URL}/:path*
+        # so /api/auth/login → https://neuro-ai-server.onrender.com/api/auth/login
+      - key: NEXT_PUBLIC_BACKEND_URL
+        value: /api
+      - key: NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+        value: dp7qerjic
+      - key: NEXT_PUBLIC_CLOUDINARY_CLOUD_KEY
+        sync: false
+      - key: NEXT_PUBLIC_CLOUDINARY_CLOUD_SECRET
+        sync: false
