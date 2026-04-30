@@ -1,52 +1,32 @@
-import nodemailer from "nodemailer";
-import type SMTPTransport from "nodemailer/lib/smtp-transport/index.js";
-import dotenv from "dotenv"
-dotenv.config()
+import sgMail from "@sendgrid/mail";
+import dotenv from "dotenv";
+dotenv.config();
 
-const smtpUser = process.env.SMTP_USER ?? process.env.EMAIL_USER;
-const smtpPass = process.env.SMTP_PASS ?? process.env.EMAIL_PASS;
-const fromEmail = process.env.MAIL_FROM ?? smtpUser;
+const apiKey = process.env.SENDGRID_API_KEY;
+const fromEmail = process.env.MAIL_FROM;
 const fromName = process.env.MAIL_FROM_NAME ?? "Neuro AI";
-const smtpHost = process.env.SMTP_HOST ?? "smtp.gmail.com";
-const smtpPort = Number(process.env.SMTP_PORT ?? 587);
-const smtpSecure = process.env.SMTP_SECURE
-    ? process.env.SMTP_SECURE === "true"
-    : smtpPort === 465;
 
-if (!smtpUser || !smtpPass) {
-    throw new Error("SMTP_USER and SMTP_PASS must be set before starting the server");
+if (!apiKey) {
+  throw new Error("SENDGRID_API_KEY must be set before starting the server");
 }
 
-const mailOptions: SMTPTransport.Options = {
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpSecure,
-    auth: {
-        user: smtpUser,
-        pass: smtpPass,
-    },
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 30000,
-};
+if (!fromEmail) {
+  throw new Error("MAIL_FROM must be set before starting the server");
+}
 
-const transporter = nodemailer.createTransport(mailOptions);
+sgMail.setApiKey(apiKey);
 
-// Verify connection once at startup
-transporter.verify((error: Error | null, success: boolean) => {
-    if (error) {
-        console.log("Mail server error:", error);
-    } else {
-        console.log("Mail server ready");
-    }
-});
+console.log("SendGrid mail client initialized");
 
 export const sendOtpEmail = async (email: string, otp: string) => {
-    await transporter.sendMail({
-        from: `"${fromName}" <${fromEmail}>`,
-        to: email,
-        subject: "Your Login OTP",
-        html: `
+  const msg = {
+    to: email,
+    from: {
+      email: fromEmail,
+      name: fromName,
+    },
+    subject: "Your Login OTP",
+    html: `
   <div style="margin:0;padding:0;background-color:#f4f6f8;font-family:Arial,Helvetica,sans-serif;">
     <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
       <tr>
@@ -82,9 +62,7 @@ export const sendOtpEmail = async (email: string, otp: string) => {
                   background:#f3f4f6;
                   border-radius:10px;
                   color:#111827;
-                ">
-                  ${otp}
-                </div>
+                ">${otp}</div>
               </td>
             </tr>
 
@@ -110,6 +88,14 @@ export const sendOtpEmail = async (email: string, otp: string) => {
       </tr>
     </table>
   </div>
-`
-    });
+`,
+  };
+
+  await sgMail.send(msg).catch((error) => {
+    if (error.response) {
+      console.error("SendGrid error status:", error.code);
+      console.error("SendGrid error body:", JSON.stringify(error.response.body, null, 2));
+    }
+    throw error;
+  });
 };

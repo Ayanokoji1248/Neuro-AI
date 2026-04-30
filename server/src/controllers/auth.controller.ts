@@ -68,9 +68,12 @@ export const registerUser = async (req: Request, res: Response) => {
             loginSessionId
         });
 
-    } catch (error) {
+    } catch (error: any) {
 
-        console.error(error);
+        console.error("[REGISTER ERROR]", error?.message || error);
+        if (error?.response?.body) {
+            console.error("[REGISTER] SendGrid details:", JSON.stringify(error.response.body, null, 2));
+        }
 
         res.status(500).json({
             message: "Internal server error"
@@ -157,9 +160,12 @@ export const loginUser = async (req: Request, res: Response) => {
         })
 
 
-    } catch (error) {
+    } catch (error: any) {
 
-        console.error(error);
+        console.error("[LOGIN ERROR]", error?.message || error);
+        if (error?.response?.body) {
+            console.error("[LOGIN] SendGrid details:", JSON.stringify(error.response.body, null, 2));
+        }
 
         res.status(500).json({
             message: "Internal server error"
@@ -246,17 +252,17 @@ export const verifyOtp = async (req: Request, res: Response) => {
     }
 
     const token = generateToken(finalUserId, user.role);
-    
+
     const isProduction = process.env.NODE_ENV === "production";
     const origin = req.headers.origin || req.headers.referer;
-    
+
     // For production or cross-origin requests, use stricter settings
     // For production (especially when proxied), use Secure and SameSite=None if cross-origin
     // But since we are using Next.js Rewrites, it will be same-origin from the browser's perspective.
     // However, keeping these settings is safer for various deployment scenarios.
     const sameSite = isProduction ? "none" : "lax";
     const secure = isProduction;
-    
+
     res.cookie("token", token, {
         httpOnly: true,
         secure: secure,
@@ -266,14 +272,14 @@ export const verifyOtp = async (req: Request, res: Response) => {
         // domain: isProduction ? ".vercel.app" : undefined // Optional: only if needed for subdomains
     });
 
-    return res.json({ 
-        message: "Login successful", 
-        token, 
-        user: { 
-            id: user._id, 
-            fullName: user.fullName, 
-            email: user.email, 
-            role: user.role 
-        } 
+    return res.json({
+        message: "Login successful",
+        token,
+        user: {
+            id: user._id,
+            fullName: user.fullName,
+            email: user.email,
+            role: user.role
+        }
     });
 };

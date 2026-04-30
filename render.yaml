@@ -23,24 +23,12 @@ services:
         sync: false
       - key: UPSTASH_REDIS_REST_TOKEN
         sync: false
-      - key: SMTP_HOST
-        value: smtp-relay.brevo.com
-      - key: SMTP_PORT
-        value: "587"
-      - key: SMTP_SECURE
-        value: "false"
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASS
+      - key: SENDGRID_API_KEY
         sync: false
       - key: MAIL_FROM
         value: krishprajapati1248@gmail.com
       - key: MAIL_FROM_NAME
         value: Neuro AI
-      - key: RESEND_EMAIL
-        sync: false
-      - key: BREVO_KEY
-        sync: false
       - key: CLIENT_URL
         sync: false   # set this to your frontend Render URL after deploy
 
